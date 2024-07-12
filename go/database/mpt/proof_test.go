@@ -1086,3 +1086,44 @@ func createReferenceProof(t *testing.T, ctxt *nodeContext, root *NodeReference, 
 	}
 	return WitnessProof{proof}
 }
+
+func BenchmarkWitnessProof_CreateProof(b *testing.B) {
+	ctrl := gomock.NewController(b)
+
+	address := common.Address{1}
+	key := common.Key{2}
+
+	ctxt := newNodeContextWithConfig(b, ctrl, S5LiveConfig)
+	addressNibbles := AddressToNibblePath(address, ctxt)
+	keyNibbles := KeyToNibblePath(key, ctxt)
+
+	desc := &Branch{
+		children: Children{
+			addressNibbles[0]: &Branch{
+				children: Children{
+					addressNibbles[1]: &Extension{
+						path: addressNibbles[2:50],
+						next: &Account{address: address, pathLength: 14, info: AccountInfo{common.Nonce{1}, common.Balance{1}, common.Hash{0xAA}},
+							storage: &Branch{
+								children: Children{
+									keyNibbles[0]: &Extension{path: keyNibbles[1:40], next: &Value{key: key, length: 24, value: common.Value{0x12}}},
+								}}}},
+				}}},
+	}
+	root, _ := ctxt.Build(desc)
+
+	b.ResetTimer()
+
+	var sink bool
+	for i := 1; i <= b.N; i++ {
+		proof, err := CreateWitnessProof(ctxt, &root, address, key)
+		if err != nil {
+			b.Fatalf("failed to create proof: %v", err)
+		}
+		sink = sink || proof.IsValid()
+	}
+
+	if !sink {
+		b.Fatalf("unexpected result")
+	}
+}

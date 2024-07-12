@@ -7959,11 +7959,11 @@ type nodeContext struct {
 	released  []NodeId
 }
 
-func newNodeContext(t *testing.T, ctrl *gomock.Controller) *nodeContext {
+func newNodeContext(t testing.TB, ctrl *gomock.Controller) *nodeContext {
 	return newNodeContextWithConfig(t, ctrl, S4LiveConfig)
 }
 
-func newNodeContextWithConfig(t *testing.T, ctrl *gomock.Controller, config MptConfig) *nodeContext {
+func newNodeContextWithConfig(t testing.TB, ctrl *gomock.Controller, config MptConfig) *nodeContext {
 	res := &nodeContext{
 		MockNodeManager: NewMockNodeManager(ctrl),
 		index:           map[NodeId]entry{},
