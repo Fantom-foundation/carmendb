@@ -14,6 +14,7 @@ package state
 import (
 	"errors"
 	"fmt"
+	"github.com/Fantom-foundation/Carmen/go/common/witness"
 	"maps"
 	"math/big"
 	"sync"
@@ -158,6 +159,8 @@ type NonCommittableStateDB interface {
 	// Available for non-committable states only, as a commit to the backing state
 	// makes all other StateDBs with the same backing state invalid.
 	Copy() NonCommittableStateDB
+
+	CreateWitnessProof(address common.Address, keys ...common.Key) (witness.Proof, error)
 
 	// Release should be called whenever this instance is no longer needed to allow
 	// held resources to be reused for future requests. After the release, no more
@@ -1485,6 +1488,13 @@ func (db *nonCommittableStateDB) Copy() NonCommittableStateDB {
 	// which are reset at the end of every tx
 
 	return &nonCommittableStateDB{cp}
+}
+
+// CreateWitnessProof creates a witness proof for the given account and keys.
+// Error may be produced when it occurs in the underlying database;
+// otherwise, the proof is returned.
+func (db *nonCommittableStateDB) CreateWitnessProof(address common.Address, keys ...common.Key) (witness.Proof, error) {
+	return db.state.CreateWitnessProof(address, keys...)
 }
 
 func (db *nonCommittableStateDB) Release() {

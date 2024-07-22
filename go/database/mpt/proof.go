@@ -177,6 +177,12 @@ func (p WitnessProof) GetCodeHash(root common.Hash, address common.Address) (com
 	})
 }
 
+func (p WitnessProof) GetStorageRoot(root common.Hash, address common.Address) (common.Hash, bool, error) {
+	return witnessAccountFieldGetter(p.proofDb, root, address, func(n AccountNode) common.Hash {
+		return n.Info().CodeHash
+	})
+}
+
 // GetState extracts a storage slot from the witness proof for the input root hash, account address and the storage key.
 // If the proof was complete, this method returns true, otherwise it returns false.
 // The proof was complete if it could fully determine either existence or non-existence of the slot.
