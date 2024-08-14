@@ -14,12 +14,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Fantom-foundation/Carmen/go/database/mpt"
+	mptio "github.com/Fantom-foundation/Carmen/go/database/mpt/io"
 	"io"
 	"unsafe"
 
 	"github.com/Fantom-foundation/Carmen/go/common/witness"
-	"github.com/Fantom-foundation/Carmen/go/database/mpt"
-	mptio "github.com/Fantom-foundation/Carmen/go/database/mpt/io"
 
 	"github.com/Fantom-foundation/Carmen/go/backend"
 	"github.com/Fantom-foundation/Carmen/go/backend/archive"
@@ -155,14 +155,19 @@ func (s *ArchiveState) Export(ctx context.Context, out io.Writer) (common.Hash, 
 		return common.Hash{}, state.ExportNotSupported
 	}
 
-	exportableTrie := mptio.NewExportableArchiveTrie(trie, s.block)
-	rootHash, err := mptio.ExportLive(ctx, mptio.NewLog(), exportableTrie, out)
+	err := mptio.ExportBlockFromOnlineArchive(ctx, trie, out, s.block)
 	if err != nil {
 		s.archiveError = errors.Join(s.archiveError, err)
 		return common.Hash{}, s.archiveError
 	}
 
-	return rootHash, s.archiveError
+	rootHash, err := trie.GetHash(s.block)
+	if err != nil {
+		s.archiveError = errors.Join(s.archiveError, err)
+		return common.Hash{}, s.archiveError
+	}
+
+	return rootHash, nil
 }
 
 func (s *ArchiveState) Flush() error {
