@@ -1,0 +1,1147 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>io: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/Fantom-foundation/Carmen/go/database/mpt/io/archive.go (72.0%)</option>
+				
+				<option value="file1">github.com/Fantom-foundation/Carmen/go/database/mpt/io/codes.go (78.9%)</option>
+				
+				<option value="file2">github.com/Fantom-foundation/Carmen/go/database/mpt/io/exportable.go (100.0%)</option>
+				
+				<option value="file3">github.com/Fantom-foundation/Carmen/go/database/mpt/io/info.go (100.0%)</option>
+				
+				<option value="file4">github.com/Fantom-foundation/Carmen/go/database/mpt/io/live.go (68.9%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">// Copyright (c) 2024 Fantom Foundation
+//
+// Use of this software is governed by the Business Source License included
+// in the LICENSE file and at fantom.foundation/bsl11.
+//
+// Change Date: 2028-4-16
+//
+// On the date above, in accordance with the Business Source License, use of
+// this software will be governed by the GNU Lesser General Public License v3.
+
+package io
+
+import (
+        "bytes"
+        "context"
+        "encoding/binary"
+        "errors"
+        "fmt"
+        "io"
+        "os"
+        "path"
+        "sort"
+
+        "github.com/Fantom-foundation/Carmen/go/common/amount"
+        "github.com/Fantom-foundation/Carmen/go/common/interrupt"
+        "github.com/Fantom-foundation/Carmen/go/state"
+
+        "github.com/Fantom-foundation/Carmen/go/backend/archive"
+        "github.com/Fantom-foundation/Carmen/go/common"
+        "github.com/Fantom-foundation/Carmen/go/database/mpt"
+        "golang.org/x/exp/maps"
+)
+
+// This file provides a pair of import and export functions capable of
+// serializing the content of an Archive into a single, payload-only data
+// blob with build-in consistency check which can be utilized for safely
+// transferring state information between systems.
+//
+// Format:
+//
+//  file   ::= &lt;magic-number&gt; &lt;version&gt; [&lt;code&gt;]* [&lt;update&gt;]*
+//  code   ::= 'C' &lt;2-byte big-endian code length&gt; &lt;code&gt;
+//  update ::= 'U' &lt;4-byte big-endian block&gt; [&lt;hash&gt;]+ [&lt;change&gt;]+
+//  hash   ::= 'H' &lt;1-byte hash type identifier&gt; &lt;state-hash&gt;
+//  change ::= 'A' &lt;address&gt;           // starts a new account scope
+//           | 'R'                     // reset the current account
+//           | 'B' &lt;balance&gt;           // update the current account's balance
+//           | 'N' &lt;nonce&gt;             // update the current account's nonce
+//           | 'c' &lt;code-hash&gt;         // update the current account's code
+//           | 'V' &lt;key&gt; &lt;value&gt;       // update the value of a storage slot
+//           | 'D' &lt;key&gt;               // delete a storage slot
+//
+// All properties belong to the account preceding it. The produced data stream
+// may be further compressed (e.g. using Gzip) to reduce its size.
+
+var archiveMagicNumber []byte = []byte("Fantom-Archive-State")
+
+const archiveFormatVersion = byte(1)
+
+func ExportArchive(ctx context.Context, directory string, out io.Writer) error <span class="cov8" title="1">{
+        info, err := CheckMptDirectoryAndGetInfo(directory)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("error in input directory: %v", err)
+        }</span>
+
+        <span class="cov8" title="1">if info.Config.Name != mpt.S5ArchiveConfig.Name </span><span class="cov0" title="0">{
+                return fmt.Errorf("can only support export of S5 Archive instances, found %v in directory", info.Config.Name)
+        }</span>
+
+        <span class="cov8" title="1">archive, err := mpt.OpenArchiveTrie(directory, info.Config, mpt.NodeCacheConfig{})
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        // Start with the magic number.
+        <span class="cov8" title="1">if _, err := out.Write(archiveMagicNumber); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        // Add a version number.
+        <span class="cov8" title="1">if _, err := out.Write([]byte{archiveFormatVersion}); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        // Write out codes.
+        <span class="cov8" title="1">codes := archive.GetCodes()
+        if err := writeCodes(codes, out); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        // Write out updates.
+        <span class="cov8" title="1">maxBlock, empty, err := archive.GetBlockHeight()
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to get max block height: %w", err)
+        }</span>
+        <span class="cov8" title="1">if empty </span><span class="cov0" title="0">{
+                return archive.Close()
+        }</span>
+
+        // Encode diff of each individual block.
+        <span class="cov8" title="1">for block := uint64(0); block &lt;= maxBlock; block++ </span><span class="cov8" title="1">{
+                if interrupt.IsCancelled(ctx) </span><span class="cov8" title="1">{
+                        return errors.Join(interrupt.ErrCanceled, archive.Close())
+                }</span>
+                <span class="cov8" title="1">diff, err := archive.GetDiffForBlock(block)
+                if err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("failed to get diff for block %d: %w", block, err)
+                }</span>
+                <span class="cov8" title="1">if len(diff) == 0 </span><span class="cov8" title="1">{
+                        continue</span>
+                }
+
+                // Encode block number.
+                <span class="cov8" title="1">b := []byte{byte('U'), 0, 0, 0, 0}
+                binary.BigEndian.PutUint32(b[1:], uint32(block))
+                if _, err := out.Write(b); err != nil </span><span class="cov0" title="0">{
+                        return err
+                }</span>
+
+                // Encode the block hash.
+                <span class="cov8" title="1">hash, err := archive.GetHash(block)
+                if err != nil </span><span class="cov0" title="0">{
+                        return err
+                }</span>
+                <span class="cov8" title="1">if _, err := out.Write([]byte{byte('H'), byte(EthereumHash)}); err != nil </span><span class="cov0" title="0">{
+                        return err
+                }</span>
+                <span class="cov8" title="1">if _, err := out.Write(hash[:]); err != nil </span><span class="cov0" title="0">{
+                        return err
+                }</span>
+
+                // Encode changes of this block.
+                <span class="cov8" title="1">addresses := maps.Keys(diff)
+                sort.Slice(addresses, func(i, j int) bool </span><span class="cov8" title="1">{ return bytes.Compare(addresses[i][:], addresses[j][:]) &lt; 0 }</span>)
+                <span class="cov8" title="1">for _, address := range addresses </span><span class="cov8" title="1">{
+                        if _, err := out.Write([]byte{'A'}); err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                        <span class="cov8" title="1">if _, err := out.Write(address[:]); err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                        <span class="cov8" title="1">accountDiff := diff[address]
+                        if accountDiff.Reset </span><span class="cov8" title="1">{
+                                if _, err := out.Write([]byte{'R'}); err != nil </span><span class="cov0" title="0">{
+                                        return err
+                                }</span>
+                        }
+                        <span class="cov8" title="1">if accountDiff.Balance != nil </span><span class="cov8" title="1">{
+                                if _, err := out.Write([]byte{'B'}); err != nil </span><span class="cov0" title="0">{
+                                        return err
+                                }</span>
+                                <span class="cov8" title="1">b := accountDiff.Balance.Bytes32()
+                                if _, err := out.Write(b[:]); err != nil </span><span class="cov0" title="0">{
+                                        return err
+                                }</span>
+                        }
+                        <span class="cov8" title="1">if accountDiff.Nonce != nil </span><span class="cov8" title="1">{
+                                if _, err := out.Write([]byte{'N'}); err != nil </span><span class="cov0" title="0">{
+                                        return err
+                                }</span>
+                                <span class="cov8" title="1">if _, err := out.Write((*accountDiff.Nonce)[:]); err != nil </span><span class="cov0" title="0">{
+                                        return err
+                                }</span>
+                        }
+                        <span class="cov8" title="1">if accountDiff.Code != nil </span><span class="cov8" title="1">{
+                                if _, err := out.Write([]byte{'c'}); err != nil </span><span class="cov0" title="0">{
+                                        return err
+                                }</span>
+                                <span class="cov8" title="1">if _, err := out.Write((*accountDiff.Code)[:]); err != nil </span><span class="cov0" title="0">{
+                                        return err
+                                }</span>
+                        }
+                        <span class="cov8" title="1">keys := maps.Keys(accountDiff.Storage)
+                        sort.Slice(keys, func(i, j int) bool </span><span class="cov8" title="1">{ return bytes.Compare(keys[i][:], keys[j][:]) &lt; 0 }</span>)
+                        <span class="cov8" title="1">for _, key := range keys </span><span class="cov8" title="1">{
+                                value := accountDiff.Storage[key]
+                                if (value == common.Value{}) </span><span class="cov8" title="1">{
+                                        if _, err := out.Write([]byte{'D'}); err != nil </span><span class="cov0" title="0">{
+                                                return err
+                                        }</span>
+                                        <span class="cov8" title="1">if _, err := out.Write(key[:]); err != nil </span><span class="cov0" title="0">{
+                                                return err
+                                        }</span>
+                                } else<span class="cov8" title="1"> {
+                                        if _, err := out.Write([]byte{'V'}); err != nil </span><span class="cov0" title="0">{
+                                                return err
+                                        }</span>
+                                        <span class="cov8" title="1">if _, err := out.Write(key[:]); err != nil </span><span class="cov0" title="0">{
+                                                return err
+                                        }</span>
+                                        <span class="cov8" title="1">if _, err := out.Write(value[:]); err != nil </span><span class="cov0" title="0">{
+                                                return err
+                                        }</span>
+                                }
+                        }
+                }
+        }
+
+        <span class="cov8" title="1">return archive.Close()</span>
+}
+
+func ImportArchive(directory string, in io.Reader) error <span class="cov8" title="1">{
+        // check that the destination directory is an empty directory
+        if err := checkEmptyDirectory(directory); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov8" title="1">liveDbDir := path.Join(directory, "tmp-live-db")
+        return errors.Join(
+                importArchive(liveDbDir, directory, in),
+                os.RemoveAll(liveDbDir), // live db is deleted at the end
+        )</span>
+}
+
+func ImportLiveAndArchive(directory string, in io.Reader) error <span class="cov8" title="1">{
+        // check that the destination directory is an empty directory
+        if err := checkEmptyDirectory(directory); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov8" title="1">liveDbDir := path.Join(directory, "live")
+        archiveDbDir := path.Join(directory, "archive")
+        return importArchive(liveDbDir, archiveDbDir, in)</span>
+}
+
+func importArchive(liveDbDir, archiveDbDir string, in io.Reader) (err error) <span class="cov8" title="1">{
+        // Start by checking the magic number.
+        buffer := make([]byte, len(archiveMagicNumber))
+        if _, err := io.ReadFull(in, buffer); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span> else<span class="cov8" title="1"> if !bytes.Equal(buffer, archiveMagicNumber) </span><span class="cov0" title="0">{
+                return fmt.Errorf("invalid format, wrong magic number")
+        }</span>
+
+        // Check the version number.
+        <span class="cov8" title="1">if _, err := io.ReadFull(in, buffer[0:1]); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span> else<span class="cov8" title="1"> if buffer[0] != archiveFormatVersion </span><span class="cov0" title="0">{
+                return fmt.Errorf("invalid format, unsupported version")
+        }</span>
+
+        // Create a live-DB updated in parallel for faster hash computation.
+        <span class="cov8" title="1">live, err := mpt.OpenGoFileState(liveDbDir, mpt.S5LiveConfig, mpt.NodeCacheConfig{})
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to create auxiliary live DB: %w", err)
+        }</span>
+        <span class="cov8" title="1">defer func() </span><span class="cov8" title="1">{
+                err = errors.Join(
+                        err,
+                        live.Close(),
+                )
+        }</span>()
+
+        // Create an empty archive.
+        <span class="cov8" title="1">archive, err := mpt.OpenArchiveTrie(archiveDbDir, mpt.S5ArchiveConfig, mpt.NodeCacheConfig{})
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to create empty state: %w", err)
+        }</span>
+        <span class="cov8" title="1">defer func() </span><span class="cov8" title="1">{
+                err = errors.Join(err, archive.Close())
+        }</span>()
+
+        // Restore the archive from the input file.
+        <span class="cov8" title="1">context := newImportContext()
+        for </span><span class="cov8" title="1">{
+                // Read prefix determining the next input marker.
+                if _, err := io.ReadFull(in, buffer[0:1]); err != nil </span><span class="cov8" title="1">{
+                        if err == io.EOF </span><span class="cov8" title="1">{
+                                return context.finishCurrentBlock(archive, live)
+                        }</span>
+                        <span class="cov0" title="0">return err</span>
+                }
+                <span class="cov8" title="1">switch buffer[0] </span>{
+                case 'A':<span class="cov8" title="1">
+                        address := common.Address{}
+                        if _, err := io.ReadFull(in, address[:]); err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                        <span class="cov8" title="1">context.setAccount(address)</span>
+                case 'C':<span class="cov8" title="1">
+                        code, err := readCode(in)
+                        if err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                        <span class="cov8" title="1">context.addCode(code)</span>
+                case 'U':<span class="cov8" title="1">
+                        if err := context.finishCurrentBlock(archive, live); err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                        <span class="cov8" title="1">if _, err := io.ReadFull(in, buffer[0:4]); err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                        <span class="cov8" title="1">context.setBlock(uint64(binary.BigEndian.Uint32(buffer)))</span>
+
+                case 'H':<span class="cov8" title="1">
+                        if _, err := io.ReadFull(in, buffer[0:1]); err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                        <span class="cov8" title="1">hashType := HashType(buffer[0])
+                        hash := common.Hash{}
+                        if _, err := io.ReadFull(in, hash[:]); err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                        <span class="cov8" title="1">if hashType == EthereumHash </span><span class="cov8" title="1">{
+                                context.setBlockHash(hash)
+                        }</span>
+
+                case 'R':<span class="cov8" title="1">
+                        context.deleteAccount()</span>
+
+                case 'B':<span class="cov8" title="1">
+                        var balance [amount.BytesLength]byte
+                        if _, err := io.ReadFull(in, balance[:]); err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                        <span class="cov8" title="1">context.setBalance(amount.NewFromBytes(balance[:]...))</span>
+
+                case 'N':<span class="cov8" title="1">
+                        nonce := common.Nonce{}
+                        if _, err := io.ReadFull(in, nonce[:]); err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                        <span class="cov8" title="1">context.setNonce(nonce)</span>
+
+                case 'c':<span class="cov8" title="1">
+                        hash := common.Hash{}
+                        if _, err := io.ReadFull(in, hash[:]); err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                        <span class="cov8" title="1">if err := context.setCode(hash); err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+
+                case 'V':<span class="cov8" title="1">
+                        key := common.Key{}
+                        value := common.Value{}
+                        if _, err := io.ReadFull(in, key[:]); err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                        <span class="cov8" title="1">if _, err := io.ReadFull(in, value[:]); err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                        <span class="cov8" title="1">context.setSlot(key, value)</span>
+
+                case 'D':<span class="cov8" title="1">
+                        key := common.Key{}
+                        if _, err := io.ReadFull(in, key[:]); err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                        <span class="cov8" title="1">context.deleteSlot(key)</span>
+
+                default:<span class="cov0" title="0">
+                        return fmt.Errorf("format error encountered, unexpected token type: %c", buffer[0])</span>
+                }
+        }
+}
+
+type importContext struct {
+        codes                 map[common.Hash][]byte
+        currentAccount        common.Address
+        currentBlock          uint64
+        currentBlockHash      common.Hash
+        currentBlockHashFound bool
+        currentUpdate         common.Update
+}
+
+func newImportContext() *importContext <span class="cov8" title="1">{
+        return &amp;importContext{
+                codes: map[common.Hash][]byte{
+                        common.Keccak256([]byte{}): {},
+                },
+        }
+}</span>
+
+func (c *importContext) addCode(code []byte) <span class="cov8" title="1">{
+        c.codes[common.Keccak256(code)] = code
+}</span>
+
+func (c *importContext) setBlock(block uint64) <span class="cov8" title="1">{
+        c.currentBlock = block
+}</span>
+
+func (c *importContext) setBlockHash(hash common.Hash) <span class="cov8" title="1">{
+        c.currentBlockHash = hash
+        c.currentBlockHashFound = true
+}</span>
+
+func (c *importContext) setAccount(address common.Address) <span class="cov8" title="1">{
+        c.currentAccount = address
+}</span>
+
+func (c *importContext) deleteAccount() <span class="cov8" title="1">{
+        c.currentUpdate.AppendDeleteAccount(c.currentAccount)
+}</span>
+
+func (c *importContext) setBalance(balance amount.Amount) <span class="cov8" title="1">{
+        c.currentUpdate.AppendBalanceUpdate(c.currentAccount, balance)
+}</span>
+
+func (c *importContext) setNonce(nonce common.Nonce) <span class="cov8" title="1">{
+        c.currentUpdate.AppendNonceUpdate(c.currentAccount, nonce)
+}</span>
+
+func (c *importContext) setCode(hash common.Hash) error <span class="cov8" title="1">{
+        code, found := c.codes[hash]
+        if !found </span><span class="cov0" title="0">{
+                return fmt.Errorf("missing code for hash %v in input file", hash)
+        }</span>
+        <span class="cov8" title="1">c.currentUpdate.AppendCodeUpdate(c.currentAccount, code)
+        return nil</span>
+}
+
+func (c *importContext) setSlot(key common.Key, value common.Value) <span class="cov8" title="1">{
+        c.currentUpdate.AppendSlotUpdate(c.currentAccount, key, value)
+}</span>
+
+func (c *importContext) deleteSlot(key common.Key) <span class="cov8" title="1">{
+        c.currentUpdate.AppendSlotUpdate(c.currentAccount, key, common.Value{})
+}</span>
+
+func (c *importContext) finishCurrentBlock(archive archive.Archive, live state.LiveDB) error <span class="cov8" title="1">{
+        if c.currentUpdate.IsEmpty() </span><span class="cov8" title="1">{
+                return nil
+        }</span>
+        <span class="cov8" title="1">if !c.currentBlockHashFound </span><span class="cov0" title="0">{
+                return fmt.Errorf("input format error: no hash for block %d", c.currentBlock)
+        }</span>
+        <span class="cov8" title="1">hints, err := live.Apply(c.currentBlock, c.currentUpdate)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov8" title="1">if err := archive.Add(c.currentBlock, c.currentUpdate, hints); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov8" title="1">hints.Release()
+        hash, err := archive.GetHash(c.currentBlock)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov8" title="1">if hash != c.currentBlockHash </span><span class="cov0" title="0">{
+                return fmt.Errorf("invalid hash for block %d: from input %x, restored hash %x", c.currentBlock, c.currentBlockHash, hash)
+        }</span>
+
+        <span class="cov8" title="1">c.currentUpdate = common.Update{}
+        c.currentBlockHashFound = false
+        return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">// Copyright (c) 2024 Fantom Foundation
+//
+// Use of this software is governed by the Business Source License included
+// in the LICENSE file and at fantom.foundation/bsl11.
+//
+// Change Date: 2028-4-16
+//
+// On the date above, in accordance with the Business Source License, use of
+// this software will be governed by the GNU Lesser General Public License v3.
+
+package io
+
+import (
+        "encoding/binary"
+        "fmt"
+        "io"
+        "sort"
+
+        "github.com/Fantom-foundation/Carmen/go/common"
+        "golang.org/x/exp/maps"
+)
+
+func writeCodes(codes map[common.Hash][]byte, out io.Writer) error <span class="cov8" title="1">{
+        // Sort codes for a stable result.
+        hashes := maps.Keys(codes)
+        sort.Slice(hashes, func(i, j int) bool </span><span class="cov8" title="1">{ return hashes[i].Compare(&amp;hashes[j]) &lt; 0 }</span>)
+        <span class="cov8" title="1">for _, hash := range hashes </span><span class="cov8" title="1">{
+                code := codes[hash]
+                b := []byte{byte('C'), 0, 0}
+                binary.BigEndian.PutUint16(b[1:], uint16(len(code)))
+                if _, err := out.Write(b); err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("output error: %v", err)
+                }</span>
+                <span class="cov8" title="1">if _, err := out.Write(code); err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("output error: %v", err)
+                }</span>
+        }
+        <span class="cov8" title="1">return nil</span>
+}
+
+func readCode(in io.Reader) ([]byte, error) <span class="cov8" title="1">{
+        length := []byte{0, 0}
+        if _, err := io.ReadFull(in, length[:]); err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">code := make([]byte, binary.BigEndian.Uint16(length))
+        if _, err := io.ReadFull(in, code); err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">return code, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">// Copyright (c) 2024 Fantom Foundation
+//
+// Use of this software is governed by the Business Source License included
+// in the LICENSE file and at fantom.foundation/bsl11.
+//
+// Change Date: 2028-4-16
+//
+// On the date above, in accordance with the Business Source License, use of
+// this software will be governed by the GNU Lesser General Public License v3.
+
+package io
+
+import (
+        "github.com/Fantom-foundation/Carmen/go/common"
+        "github.com/Fantom-foundation/Carmen/go/database/mpt"
+)
+
+type exportable interface {
+        // Visit allows for travertines the whole trie under the input root.
+        Visit(visitor mpt.NodeVisitor) error
+        // GetHash returns hash of the current Trie.
+        GetHash() (common.Hash, error)
+        // GetCodeForHash returns byte code for given hash.
+        GetCodeForHash(common.Hash) []byte
+}
+
+type exportableArchiveTrie struct {
+        trie  *mpt.ArchiveTrie
+        block uint64
+        codes map[common.Hash][]byte
+}
+
+func (e exportableArchiveTrie) Visit(visitor mpt.NodeVisitor) error <span class="cov8" title="1">{
+        return e.trie.VisitTrie(e.block, visitor)
+}</span>
+
+func (e exportableArchiveTrie) GetHash() (common.Hash, error) <span class="cov8" title="1">{
+        return e.trie.GetHash(e.block)
+}</span>
+
+func (e exportableArchiveTrie) GetCodeForHash(hash common.Hash) []byte <span class="cov8" title="1">{
+        if e.codes == nil || len(e.codes) == 0 </span><span class="cov8" title="1">{
+                e.codes = e.trie.GetCodes()
+        }</span>
+        <span class="cov8" title="1">return e.codes[hash]</span>
+}
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">// Copyright (c) 2024 Fantom Foundation
+//
+// Use of this software is governed by the Business Source License included
+// in the LICENSE file and at fantom.foundation/bsl11.
+//
+// Change Date: 2028-4-16
+//
+// On the date above, in accordance with the Business Source License, use of
+// this software will be governed by the GNU Lesser General Public License v3.
+
+package io
+
+import (
+        "fmt"
+        "os"
+
+        "github.com/Fantom-foundation/Carmen/go/database/mpt"
+)
+
+type MptInfo struct {
+        Config mpt.MptConfig
+        Mode   mpt.StorageMode
+}
+
+func CheckMptDirectoryAndGetInfo(dir string) (MptInfo, error) <span class="cov8" title="1">{
+        // check that the provided repository is a directory
+        if stat, err := os.Stat(dir); err != nil </span><span class="cov8" title="1">{
+                return MptInfo{}, fmt.Errorf("no such directory: %v", dir)
+        }</span> else<span class="cov8" title="1"> if !stat.IsDir() </span><span class="cov8" title="1">{
+                return MptInfo{}, fmt.Errorf("%v is not a directory", dir)
+        }</span>
+
+        // try to obtain information of the contained MPT
+        <span class="cov8" title="1">return getMptInfo(dir)</span>
+}
+
+func getMptInfo(dir string) (MptInfo, error) <span class="cov8" title="1">{
+        var res MptInfo
+        meta, present, err := mpt.ReadForestMetadata(dir + "/forest.json")
+        if err != nil </span><span class="cov8" title="1">{
+                return res, err
+        }</span>
+
+        <span class="cov8" title="1">if !present </span><span class="cov8" title="1">{
+                return res, fmt.Errorf("invalid directory content: missing forest.json")
+        }</span>
+
+        // Try to resolve the configuration.
+        <span class="cov8" title="1">config, found := mpt.GetConfigByName(meta.Configuration)
+        if !found </span><span class="cov8" title="1">{
+                return res, fmt.Errorf("unknown MPT configuration: %v", meta.Configuration)
+        }</span>
+
+        <span class="cov8" title="1">mode := mpt.Immutable
+        if meta.Mutable </span><span class="cov8" title="1">{
+                mode = mpt.Mutable
+        }</span>
+
+        <span class="cov8" title="1">return MptInfo{
+                Config: config,
+                Mode:   mode,
+        }, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file4" style="display: none">// Copyright (c) 2024 Fantom Foundation
+//
+// Use of this software is governed by the Business Source License included
+// in the LICENSE file and at fantom.foundation/bsl11.
+//
+// Change Date: 2028-4-16
+//
+// On the date above, in accordance with the Business Source License, use of
+// this software will be governed by the GNU Lesser General Public License v3.
+
+package io
+
+import (
+        "bytes"
+        "context"
+        "errors"
+        "fmt"
+        "io"
+        "os"
+        "strings"
+
+        "github.com/Fantom-foundation/Carmen/go/common"
+        "github.com/Fantom-foundation/Carmen/go/common/amount"
+        "github.com/Fantom-foundation/Carmen/go/common/interrupt"
+        "github.com/Fantom-foundation/Carmen/go/database/mpt"
+)
+
+// This file provides a pair of import and export functions capable of
+// serializing the content of a LiveDB into a single, payload-only data
+// blob with build-in consistency check which can be utilized for safely
+// transferring state information between systems.
+//
+// Format:
+//
+//  file  ::= &lt;magic-number&gt; &lt;version&gt; [&lt;hash&gt;]+ [&lt;code&gt;]* [&lt;entry&gt;]*
+//  hash  ::= 'H' &lt;1-byte hash type identifier&gt; &lt;state-hash&gt;
+//  code  ::= 'C' &lt;2-byte big-endian code length&gt; &lt;code&gt;
+//  entry ::= 'A' &lt;address&gt; &lt;balance&gt; &lt;nonce&gt; &lt;code-hash&gt;
+//          | 'S' &lt;key&gt; &lt;value&gt;
+//
+// All values belong to the account preceding it. The produced data stream
+// may be further compressed (e.g. using Gzip) to reduce its size.
+
+var stateMagicNumber []byte = []byte("Fantom-World-State")
+
+const formatVersion = byte(1)
+
+type HashType byte
+
+// So far there is only one hash type supported, the Ethereum hash. But for
+// future situations we might want to support different hash types, like the
+// S4 hash definition. Thus this enum is introduced as a placeholder.
+const (
+        EthereumHash = HashType(0)
+)
+
+// Export opens a LiveDB instance retained in the given directory and writes
+// its content to the given output writer. The result contains all the
+// information required by the Import function below to reconstruct the full
+// state of the LiveDB.
+func Export(ctx context.Context, directory string, out io.Writer) error <span class="cov8" title="1">{
+        info, err := CheckMptDirectoryAndGetInfo(directory)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("error in input directory: %v", err)
+        }</span>
+
+        <span class="cov8" title="1">if info.Config.Name != mpt.S5LiveConfig.Name </span><span class="cov0" title="0">{
+                return fmt.Errorf("can only support export of LiveDB instances, found %v in directory", info.Mode)
+        }</span>
+
+        <span class="cov8" title="1">db, err := mpt.OpenGoFileState(directory, info.Config, mpt.NodeCacheConfig{})
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to open LiveDB: %v", err)
+        }</span>
+        <span class="cov8" title="1">defer db.Close()
+
+        return exportLive(ctx, db, out)</span>
+}
+
+func ExportFromArchive(ctx context.Context, directory string, out io.Writer, block uint64) error <span class="cov8" title="1">{
+        info, err := CheckMptDirectoryAndGetInfo(directory)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("error in input directory: %v", err)
+        }</span>
+
+        <span class="cov8" title="1">if info.Config.Name != mpt.S5ArchiveConfig.Name </span><span class="cov0" title="0">{
+                return fmt.Errorf("can only support exportLive of S5 Archive instances, found %v in directory", info.Config.Name)
+        }</span>
+
+        <span class="cov8" title="1">archive, err := mpt.OpenArchiveTrie(directory, info.Config, mpt.NodeCacheConfig{})
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov8" title="1">defer archive.Close()
+        return exportLive(ctx, exportableArchiveTrie{trie: archive, block: block}, out)</span>
+}
+
+// exportLive exports given db into out.
+func exportLive(ctx context.Context, db exportable, out io.Writer) error <span class="cov8" title="1">{
+        // Start with the magic number.
+        if _, err := out.Write(stateMagicNumber); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        // Add a version number.
+        <span class="cov8" title="1">if _, err := out.Write([]byte{formatVersion}); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        // Continue with the full state hash.
+        <span class="cov8" title="1">hash, err := db.GetHash()
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov8" title="1">if _, err := out.Write([]byte{byte('H'), byte(EthereumHash)}); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov8" title="1">if _, err := out.Write(hash[:]); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        // Write out codes.
+        <span class="cov8" title="1">codes, err := getReferencedCodes(db)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to retrieve codes: %v", err)
+        }</span>
+        <span class="cov8" title="1">if err := writeCodes(codes, out); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        // Write out all accounts and values.
+        <span class="cov8" title="1">visitor := exportVisitor{out: out, ctx: ctx}
+        if err := db.Visit(&amp;visitor); err != nil || visitor.err != nil </span><span class="cov8" title="1">{
+                return fmt.Errorf("failed exporting content: %w", errors.Join(err, visitor.err))
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+}
+
+// ImportLiveDb creates a fresh StateDB in the given directory and fills it
+// with the content read from the given reader.
+func ImportLiveDb(directory string, in io.Reader) error <span class="cov8" title="1">{
+        _, _, err := runImport(directory, in, mpt.S5LiveConfig)
+        return err
+}</span>
+
+// InitializeArchive creates a fresh Archive in the given directory containing
+// the state read from the input stream at the given block. All states before
+// the given block are empty.
+func InitializeArchive(directory string, in io.Reader, block uint64) (err error) <span class="cov8" title="1">{
+        // The import creates a live-DB state that initializes the Archive.
+        root, hash, err := runImport(directory, in, mpt.S5ArchiveConfig)
+        if err != nil </span><span class="cov8" title="1">{
+                return err
+        }</span>
+
+        // Seal the data by marking the content as immutable.
+        <span class="cov8" title="1">forestFile := directory + string(os.PathSeparator) + "forest.json"
+        metaData, err := os.ReadFile(forestFile)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov8" title="1">metaData = []byte(strings.Replace(string(metaData), "\"Mutable\":true", "\"Mutable\":false", 1))
+        if err := os.WriteFile(forestFile, metaData, 0600); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        // Create a root file listing block roots.
+        <span class="cov8" title="1">roots := make([]mpt.Root, block+1)
+        for i := uint64(0); i &lt; block; i++ </span><span class="cov8" title="1">{
+                roots[i] = mpt.Root{
+                        NodeRef: mpt.NewNodeReference(mpt.EmptyId()),
+                        Hash:    mpt.EmptyNodeEthereumHash,
+                }
+        }</span>
+        <span class="cov8" title="1">roots[block] = mpt.Root{
+                NodeRef: mpt.NewNodeReference(root),
+                Hash:    hash,
+        }
+        if err := mpt.StoreRoots(directory+string(os.PathSeparator)+"roots.dat", roots); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}
+
+func runImport(directory string, in io.Reader, config mpt.MptConfig) (root mpt.NodeId, hash common.Hash, err error) <span class="cov8" title="1">{
+        // check that the destination directory is an empty directory
+        if err := checkEmptyDirectory(directory); err != nil </span><span class="cov8" title="1">{
+                return root, hash, err
+        }</span>
+
+        // Start by checking the magic number.
+        <span class="cov8" title="1">buffer := make([]byte, len(stateMagicNumber))
+        if _, err := io.ReadFull(in, buffer); err != nil </span><span class="cov0" title="0">{
+                return root, hash, err
+        }</span> else<span class="cov8" title="1"> if !bytes.Equal(buffer, stateMagicNumber) </span><span class="cov0" title="0">{
+                return root, hash, fmt.Errorf("invalid format, wrong magic number")
+        }</span>
+
+        // Check the version number.
+        <span class="cov8" title="1">if _, err := io.ReadFull(in, buffer[0:1]); err != nil </span><span class="cov0" title="0">{
+                return root, hash, err
+        }</span> else<span class="cov8" title="1"> if buffer[0] != formatVersion </span><span class="cov0" title="0">{
+                return root, hash, fmt.Errorf("invalid format, unsupported version")
+        }</span>
+
+        // Create a state.
+        <span class="cov8" title="1">db, err := mpt.OpenGoFileState(directory, config, mpt.NodeCacheConfig{})
+        if err != nil </span><span class="cov0" title="0">{
+                return root, hash, fmt.Errorf("failed to create empty state: %v", err)
+        }</span>
+        <span class="cov8" title="1">defer func() </span><span class="cov8" title="1">{
+                err = errors.Join(err, db.Close())
+        }</span>()
+
+        <span class="cov8" title="1">var (
+                addr    common.Address
+                balance [amount.BytesLength]byte
+                key     common.Key
+                value   common.Value
+                nonce   common.Nonce
+        )
+
+        // Read the rest and build the state.
+        buffer = buffer[0:1]
+        codes := map[common.Hash][]byte{
+                common.Keccak256([]byte{}): {},
+        }
+
+        counter := 0
+
+        hashFound := false
+        var stateHash common.Hash
+        for </span><span class="cov8" title="1">{
+                // Update hashes periodically to avoid running out of memory
+                // for nodes with dirty hashes.
+                counter++
+                if (counter % 100_000) == 0 </span><span class="cov0" title="0">{
+                        if _, err := db.GetHash(); err != nil </span><span class="cov0" title="0">{
+                                return root, hash, fmt.Errorf("failed to update hashes: %v", err)
+                        }</span>
+                }
+
+                <span class="cov8" title="1">if _, err := io.ReadFull(in, buffer); err != nil </span><span class="cov8" title="1">{
+                        if err == io.EOF </span><span class="cov8" title="1">{
+                                if !hashFound </span><span class="cov0" title="0">{
+                                        return root, hash, fmt.Errorf("file does not contain a compatible state hash")
+                                }</span>
+                                // Check the final hash.
+                                <span class="cov8" title="1">hash, err := db.GetHash()
+                                if err != nil </span><span class="cov0" title="0">{
+                                        return root, hash, err
+                                }</span>
+                                <span class="cov8" title="1">if stateHash != hash </span><span class="cov0" title="0">{
+                                        return root, hash, fmt.Errorf("failed to reproduce valid state, hashes do not match")
+                                }</span>
+                                <span class="cov8" title="1">return db.GetRootId(), hash, nil</span>
+                        }
+                        <span class="cov0" title="0">return root, hash, err</span>
+                }
+                <span class="cov8" title="1">switch buffer[0] </span>{
+                case 'A':<span class="cov8" title="1">
+                        if _, err := io.ReadFull(in, addr[:]); err != nil </span><span class="cov0" title="0">{
+                                return root, hash, err
+                        }</span>
+                        <span class="cov8" title="1">if _, err := io.ReadFull(in, balance[:]); err != nil </span><span class="cov0" title="0">{
+                                return root, hash, err
+                        }</span>
+                        <span class="cov8" title="1">if err := db.SetBalance(addr, amount.NewFromBytes(balance[:]...)); err != nil </span><span class="cov0" title="0">{
+                                return root, hash, err
+                        }</span>
+                        <span class="cov8" title="1">if _, err := io.ReadFull(in, nonce[:]); err != nil </span><span class="cov0" title="0">{
+                                return root, hash, err
+                        }</span>
+                        <span class="cov8" title="1">if err := db.SetNonce(addr, nonce); err != nil </span><span class="cov0" title="0">{
+                                return root, hash, err
+                        }</span>
+                        <span class="cov8" title="1">if _, err := io.ReadFull(in, hash[:]); err != nil </span><span class="cov0" title="0">{
+                                return root, hash, err
+                        }</span>
+                        <span class="cov8" title="1">if code, found := codes[hash]; found </span><span class="cov8" title="1">{
+                                if err := db.SetCode(addr, code); err != nil </span><span class="cov0" title="0">{
+                                        return root, hash, err
+                                }</span>
+                        } else<span class="cov0" title="0"> {
+                                return root, hash, fmt.Errorf("missing code with hash %x for account %x", hash[:], addr[:])
+                        }</span>
+
+                case 'S':<span class="cov8" title="1">
+                        if _, err := io.ReadFull(in, key[:]); err != nil </span><span class="cov0" title="0">{
+                                return root, hash, err
+                        }</span>
+                        <span class="cov8" title="1">if _, err := io.ReadFull(in, value[:]); err != nil </span><span class="cov0" title="0">{
+                                return root, hash, err
+                        }</span>
+                        <span class="cov8" title="1">if err := db.SetStorage(addr, key, value); err != nil </span><span class="cov0" title="0">{
+                                return root, hash, err
+                        }</span>
+
+                case 'C':<span class="cov8" title="1">
+                        code, err := readCode(in)
+                        if err != nil </span><span class="cov0" title="0">{
+                                return root, hash, err
+                        }</span>
+                        <span class="cov8" title="1">codes[common.Keccak256(code)] = code</span>
+                case 'H':<span class="cov8" title="1">
+                        if _, err := io.ReadFull(in, buffer); err != nil </span><span class="cov0" title="0">{
+                                return root, hash, err
+                        }</span>
+                        <span class="cov8" title="1">hashType := HashType(buffer[0])
+                        hash := common.Hash{}
+                        if _, err := io.ReadFull(in, hash[:]); err != nil </span><span class="cov0" title="0">{
+                                return root, hash, err
+                        }</span>
+                        <span class="cov8" title="1">if hashType == EthereumHash </span><span class="cov8" title="1">{
+                                stateHash = hash
+                                hashFound = true
+                        }</span>
+                default:<span class="cov0" title="0">
+                        return root, hash, fmt.Errorf("format error encountered, unexpected token type: %c", buffer[0])</span>
+                }
+        }
+}
+
+// getReferencedCodes returns a map of codes referenced by accounts in the
+// given database. The map is indexed by the code hash.
+func getReferencedCodes(db exportable) (map[common.Hash][]byte, error) <span class="cov8" title="1">{
+        codes := make(map[common.Hash][]byte)
+        err := db.Visit(mpt.MakeVisitor(func(node mpt.Node, info mpt.NodeInfo) mpt.VisitResponse </span><span class="cov8" title="1">{
+                if n, ok := node.(*mpt.AccountNode); ok </span><span class="cov8" title="1">{
+                        codeHash := n.Info().CodeHash
+                        code := db.GetCodeForHash(codeHash)
+                        if len(code) &gt; 0 </span><span class="cov8" title="1">{
+                                codes[codeHash] = code
+                        }</span>
+                        <span class="cov8" title="1">return mpt.VisitResponsePrune</span> // &lt; no need to visit the storage trie
+                }
+                <span class="cov8" title="1">return mpt.VisitResponseContinue</span>
+        }))
+        <span class="cov8" title="1">return codes, err</span>
+}
+
+// exportVisitor is an internal utility used by the Export function to write
+// account and value node information to a given output writer.
+type exportVisitor struct {
+        out io.Writer
+        err error
+        ctx context.Context
+}
+
+func (e *exportVisitor) Visit(node mpt.Node, _ mpt.NodeInfo) mpt.VisitResponse <span class="cov8" title="1">{
+        // outside call to interrupt
+        if interrupt.IsCancelled(e.ctx) </span><span class="cov8" title="1">{
+                e.err = interrupt.ErrCanceled
+                return mpt.VisitResponseAbort
+        }</span>
+        <span class="cov8" title="1">switch n := node.(type) </span>{
+        case *mpt.AccountNode:<span class="cov8" title="1">
+                addr := n.Address()
+                info := n.Info()
+                if _, err := e.out.Write([]byte{byte('A')}); err != nil </span><span class="cov0" title="0">{
+                        e.err = err
+                        return mpt.VisitResponseAbort
+                }</span>
+                <span class="cov8" title="1">if _, err := e.out.Write(addr[:]); err != nil </span><span class="cov0" title="0">{
+                        e.err = err
+                        return mpt.VisitResponseAbort
+                }</span>
+                <span class="cov8" title="1">b := info.Balance.Bytes32()
+                if _, err := e.out.Write(b[:]); err != nil </span><span class="cov0" title="0">{
+                        e.err = err
+                        return mpt.VisitResponseAbort
+                }</span>
+                <span class="cov8" title="1">if _, err := e.out.Write(info.Nonce[:]); err != nil </span><span class="cov0" title="0">{
+                        e.err = err
+                        return mpt.VisitResponseAbort
+                }</span>
+                <span class="cov8" title="1">if _, err := e.out.Write(info.CodeHash[:]); err != nil </span><span class="cov0" title="0">{
+                        e.err = err
+                        return mpt.VisitResponseAbort
+                }</span>
+        case *mpt.ValueNode:<span class="cov8" title="1">
+                key := n.Key()
+                value := n.Value()
+                if _, err := e.out.Write([]byte{byte('S')}); err != nil </span><span class="cov0" title="0">{
+                        e.err = err
+                        return mpt.VisitResponseAbort
+                }</span>
+                <span class="cov8" title="1">if _, err := e.out.Write(key[:]); err != nil </span><span class="cov0" title="0">{
+                        e.err = err
+                        return mpt.VisitResponseAbort
+                }</span>
+                <span class="cov8" title="1">if _, err := e.out.Write(value[:]); err != nil </span><span class="cov0" title="0">{
+                        e.err = err
+                        return mpt.VisitResponseAbort
+                }</span>
+        }
+        <span class="cov8" title="1">return mpt.VisitResponseContinue</span>
+}
+
+func checkEmptyDirectory(directory string) error <span class="cov8" title="1">{
+        file, err := os.Open(directory)
+        if err != nil </span><span class="cov8" title="1">{
+                return fmt.Errorf("failed to open directory %s: %w", directory, err)
+        }</span>
+        <span class="cov8" title="1">defer file.Close()
+        state, err := file.Stat()
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to open file information for %s: %w", directory, err)
+        }</span>
+        <span class="cov8" title="1">if !state.IsDir() </span><span class="cov8" title="1">{
+                return fmt.Errorf("the path `%s` does not point to a directory", directory)
+        }</span>
+        <span class="cov8" title="1">_, err = file.Readdirnames(1)
+        if err == nil </span><span class="cov8" title="1">{
+                return fmt.Errorf("directory `%s` is not empty", directory)
+        }</span>
+        <span class="cov8" title="1">if !errors.Is(err, io.EOF) </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to list content of directory `%s`: %w", directory, err)
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

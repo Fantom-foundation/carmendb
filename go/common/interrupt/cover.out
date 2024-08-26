@@ -1,0 +1,9 @@
+mode: set
+github.com/Fantom-foundation/Carmen/go/common/interrupt/interrupt.go:27.46,28.9 1 1
+github.com/Fantom-foundation/Carmen/go/common/interrupt/interrupt.go:29.20,30.14 1 1
+github.com/Fantom-foundation/Carmen/go/common/interrupt/interrupt.go:31.10,32.15 1 1
+github.com/Fantom-foundation/Carmen/go/common/interrupt/interrupt.go:38.52,42.12 4 1
+github.com/Fantom-foundation/Carmen/go/common/interrupt/interrupt.go:42.12,44.10 2 1
+github.com/Fantom-foundation/Carmen/go/common/interrupt/interrupt.go:45.12,47.12 2 1
+github.com/Fantom-foundation/Carmen/go/common/interrupt/interrupt.go:48.21,48.21 0 0
+github.com/Fantom-foundation/Carmen/go/common/interrupt/interrupt.go:52.2,52.12 1 1

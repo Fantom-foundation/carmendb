@@ -1,0 +1,1636 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>tool: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/Fantom-foundation/Carmen/go/database/mpt/tool/benchmark.go (63.1%)</option>
+				
+				<option value="file1">github.com/Fantom-foundation/Carmen/go/database/mpt/tool/block.go (0.0%)</option>
+				
+				<option value="file2">github.com/Fantom-foundation/Carmen/go/database/mpt/tool/check.go (0.0%)</option>
+				
+				<option value="file3">github.com/Fantom-foundation/Carmen/go/database/mpt/tool/export.go (0.0%)</option>
+				
+				<option value="file4">github.com/Fantom-foundation/Carmen/go/database/mpt/tool/import.go (0.0%)</option>
+				
+				<option value="file5">github.com/Fantom-foundation/Carmen/go/database/mpt/tool/info.go (0.0%)</option>
+				
+				<option value="file6">github.com/Fantom-foundation/Carmen/go/database/mpt/tool/init_archive.go (0.0%)</option>
+				
+				<option value="file7">github.com/Fantom-foundation/Carmen/go/database/mpt/tool/main.go (0.0%)</option>
+				
+				<option value="file8">github.com/Fantom-foundation/Carmen/go/database/mpt/tool/stress.go (0.0%)</option>
+				
+				<option value="file9">github.com/Fantom-foundation/Carmen/go/database/mpt/tool/verify.go (0.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">// Copyright (c) 2024 Fantom Foundation
+//
+// Use of this software is governed by the Business Source License included
+// in the LICENSE file and at fantom.foundation/bsl11.
+//
+// Change Date: 2028-4-16
+//
+// On the date above, in accordance with the Business Source License, use of
+// this software will be governed by the GNU Lesser General Public License v3.
+
+package main
+
+import (
+        "fmt"
+        "io/fs"
+        "log"
+        "net/http"
+        _ "net/http/pprof"
+        "os"
+        "os/signal"
+        "path/filepath"
+        "runtime"
+        "runtime/pprof"
+        "runtime/trace"
+        "time"
+
+        "github.com/Fantom-foundation/Carmen/go/common"
+        "github.com/Fantom-foundation/Carmen/go/state"
+        "github.com/urfave/cli/v2"
+
+        "github.com/Fantom-foundation/Carmen/go/state/gostate"
+)
+
+var Benchmark = cli.Command{
+        Action: benchmark,
+        Name:   "benchmark",
+        Usage:  "benchmarks MPT performance by filling data into a fresh instance",
+        Flags: []cli.Flag{
+                &amp;archiveFlag,
+                &amp;diagnosticsFlag,
+                &amp;numBlocksFlag,
+                &amp;numReadsPerBlockFlag,
+                &amp;numInsertsPerBlockFlag,
+                &amp;reportIntervalFlag,
+                &amp;tmpDirFlag,
+                &amp;keepStateFlag,
+                &amp;cpuProfileFlag,
+                &amp;traceFlag,
+        },
+}
+
+var (
+        archiveFlag = cli.BoolFlag{
+                Name:  "archive",
+                Usage: "enables archive mode",
+        }
+        diagnosticsFlag = cli.IntFlag{
+                Name:  "diagnostic-port",
+                Usage: "enable hosting of a realtime diagnostic server by providing a port",
+                Value: 0,
+        }
+        numBlocksFlag = cli.IntFlag{
+                Name:  "num-blocks",
+                Usage: "the number of blocks to be filled in",
+                Value: 10_000,
+        }
+        numReadsPerBlockFlag = cli.IntFlag{
+                Name:  "reads-per-block",
+                Usage: "the number of reads per block",
+                Value: 0,
+        }
+        numInsertsPerBlockFlag = cli.IntFlag{
+                Name:  "inserts-per-block",
+                Usage: "the number of inserts per block",
+                Value: 1_000,
+        }
+        reportIntervalFlag = cli.IntFlag{
+                Name:  "report-interval",
+                Usage: "the size of a reporting interval in number of blocks",
+                Value: 1000,
+        }
+        tmpDirFlag = cli.StringFlag{
+                Name:  "tmp-dir",
+                Usage: "the directory to place the state for running benchmarks on",
+        }
+        keepStateFlag = cli.BoolFlag{
+                Name:  "keep-state",
+                Usage: "disables the deletion of temporary data at the end of the benchmark",
+        }
+        cpuProfileFlag = cli.StringFlag{
+                Name:  "cpuprofile",
+                Usage: "sets the target file for storing CPU profiles to, disabled if empty",
+                Value: "",
+        }
+        traceFlag = cli.StringFlag{
+                Name:  "tracefile",
+                Usage: "sets the target file for traces to, disabled if empty",
+                Value: "",
+        }
+)
+
+func benchmark(context *cli.Context) error <span class="cov0" title="0">{
+
+        tmpDir := context.String(tmpDirFlag.Name)
+        if len(tmpDir) == 0 </span><span class="cov0" title="0">{
+                tmpDir = os.TempDir()
+        }</span>
+
+        <span class="cov0" title="0">diagnosticPort := context.Int(diagnosticsFlag.Name)
+        if diagnosticPort &gt; 0 &amp;&amp; diagnosticPort &lt; (1&lt;&lt;16) </span><span class="cov0" title="0">{
+                fmt.Printf("Starting diagnostic server at port http://localhost:%d (see https://pkg.go.dev/net/http/pprof#hdr-Usage_examples for usage examples)\n", diagnosticPort)
+                fmt.Printf("Block and mutex sampling rate is set to 100%% for diagnostics, which may impact overall performance\n")
+                go func() </span><span class="cov0" title="0">{
+                        addr := fmt.Sprintf("localhost:%d", diagnosticPort)
+                        log.Println(http.ListenAndServe(addr, nil))
+                }</span>()
+                <span class="cov0" title="0">runtime.SetBlockProfileRate(1)
+                runtime.SetMutexProfileFraction(1)</span>
+        }
+
+        <span class="cov0" title="0">start := time.Now()
+        results, err := runBenchmark(
+                benchmarkParams{
+                        archive:            context.Bool(archiveFlag.Name),
+                        numBlocks:          context.Int(numBlocksFlag.Name),
+                        numReadsPerBlock:   context.Int(numReadsPerBlockFlag.Name),
+                        numInsertsPerBlock: context.Int(numInsertsPerBlockFlag.Name),
+                        tmpDir:             tmpDir,
+                        keepState:          context.Bool(keepStateFlag.Name),
+                        cpuProfilePrefix:   context.String(cpuProfileFlag.Name),
+                        traceFilePrefix:    context.String(traceFlag.Name),
+                        reportInterval:     context.Int(reportIntervalFlag.Name),
+                },
+                func(msg string, args ...any) </span><span class="cov0" title="0">{
+                        delta := uint64(time.Since(start).Round(time.Second).Seconds())
+                        fmt.Printf("[t=%3d:%02d:%02d]: ", delta/3600, (delta/60)%60, delta%60)
+                        fmt.Printf(msg+"\n", args...)
+                }</span>,
+        )
+        <span class="cov0" title="0">if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov0" title="0">fmt.Printf("block, memory, disk, throughput\n")
+        for _, cur := range results.intervals </span><span class="cov0" title="0">{
+                fmt.Printf("%d, %d, %d, %.2f\n", cur.endOfBlock, cur.memory, cur.disk, cur.throughput)
+        }</span>
+        <span class="cov0" title="0">fmt.Printf("Overall time: %v (+%v for reporting)\n", results.insertTime, results.reportTime)
+        fmt.Printf("Overall throughput: %.2f inserts/second\n", float64(results.numInserts)/results.insertTime.Seconds())
+        return nil</span>
+}
+
+type benchmarkParams struct {
+        archive            bool
+        numBlocks          int
+        numReadsPerBlock   int
+        numInsertsPerBlock int
+        tmpDir             string
+        keepState          bool
+        cpuProfilePrefix   string
+        traceFilePrefix    string
+        reportInterval     int
+}
+
+type benchmarkRecord struct {
+        endOfBlock int
+        memory     int64
+        disk       int64
+        throughput float64
+}
+
+type benchmarkResult struct {
+        intervals  []benchmarkRecord
+        reportTime time.Duration
+        insertTime time.Duration
+        numInserts int64
+}
+
+func runBenchmark(
+        params benchmarkParams,
+        observer func(string, ...any),
+) (benchmarkResult, error) <span class="cov8" title="1">{
+        runtime.LockOSThread()
+        defer runtime.UnlockOSThread()
+
+        res := benchmarkResult{}
+
+        profilingEnabled := len(params.cpuProfilePrefix) &gt; 0
+        tracingEnabled := len(params.traceFilePrefix) &gt; 0
+
+        // Start profiling ...
+        if profilingEnabled </span><span class="cov8" title="1">{
+                if err := startCpuProfiler(fmt.Sprintf("%s_%06d", params.cpuProfilePrefix, 1)); err != nil </span><span class="cov0" title="0">{
+                        return res, err
+                }</span>
+                <span class="cov8" title="1">defer stopCpuProfiler()</span>
+        }
+
+        // Start tracing ...
+        <span class="cov8" title="1">if tracingEnabled </span><span class="cov0" title="0">{
+                if err := startTracer(fmt.Sprintf("%s_%06d", params.traceFilePrefix, 1)); err != nil </span><span class="cov0" title="0">{
+                        return res, err
+                }</span>
+                <span class="cov0" title="0">defer stopTracer()</span>
+        }
+
+        <span class="cov8" title="1">c := make(chan os.Signal, 1)
+        signal.Notify(c, os.Interrupt)
+        go func() </span><span class="cov8" title="1">{
+                for range c </span><span class="cov0" title="0">{
+                        pprof.Lookup("goroutine").WriteTo(os.Stdout, 1)
+                        fmt.Printf("signal: interrupt")
+                        os.Exit(1)
+                }</span>
+        }()
+
+        // Create the target state.
+        <span class="cov8" title="1">path := fmt.Sprintf(params.tmpDir+string(os.PathSeparator)+"state_%d", time.Now().Unix())
+
+        if params.archive </span><span class="cov8" title="1">{
+                observer("Creating state with archive in %s ..", path)
+        }</span> else<span class="cov8" title="1"> {
+                observer("Creating state without archive in %s ..", path)
+        }</span>
+        <span class="cov8" title="1">if err := os.Mkdir(path, 0700); err != nil </span><span class="cov0" title="0">{
+                return res, fmt.Errorf("failed to create temporary state directory: %v", err)
+        }</span>
+        <span class="cov8" title="1">if params.keepState </span><span class="cov8" title="1">{
+                observer("state in %s will not be removed at the end of the run", path)
+        }</span> else<span class="cov8" title="1"> {
+                observer("state in %s will be removed at the end of the run", path)
+                defer func() </span><span class="cov8" title="1">{
+                        observer("Cleaning up state in %s ..", path)
+                        if err := os.RemoveAll(path); err != nil </span><span class="cov0" title="0">{
+                                observer("Cleanup failed: %v", err)
+                        }</span>
+                }()
+        }
+
+        // Open the state to be tested.
+        <span class="cov8" title="1">archive := state.NoArchive
+        if params.archive </span><span class="cov8" title="1">{
+                archive = state.S5Archive
+        }</span>
+        <span class="cov8" title="1">state, err := state.NewState(state.Parameters{
+                Directory: path,
+                Variant:   gostate.VariantGoFile,
+                Schema:    5,
+                Archive:   archive,
+        })
+        if err != nil </span><span class="cov0" title="0">{
+                return res, err
+        }</span>
+        <span class="cov8" title="1">defer func() </span><span class="cov8" title="1">{
+                start := time.Now()
+                if err := state.Close(); err != nil </span><span class="cov0" title="0">{
+                        observer("Failed to close state: %v", err)
+                }</span>
+                <span class="cov8" title="1">observer("Closing state took %v", time.Since(start))
+                observer("Final disk usage: %d", getDirectorySize(path))</span>
+        }()
+
+        // Progress tracking.
+        <span class="cov8" title="1">reportingInterval := params.reportInterval
+        lastReportTime := time.Now()
+
+        // Record results.
+        res.intervals = make([]benchmarkRecord, 0, params.numBlocks/reportingInterval+1)
+
+        benchmarkStart := time.Now()
+        reportingTime := 0 * time.Second
+
+        // Simulate insertions.
+        numBlocks := params.numBlocks
+        numReadsPerBlock := params.numReadsPerBlock
+        numInsertsPerBlock := params.numInsertsPerBlock
+        counter := 0
+        observer(
+                "Simulating %d blocks with %d reads and %d inserts each",
+                numBlocks, numReadsPerBlock, numInsertsPerBlock,
+        )
+        for i := 0; i &lt; numBlocks; i++ </span><span class="cov8" title="1">{
+                for j := 0; j &lt; numReadsPerBlock; j++ </span><span class="cov0" title="0">{
+                        addr := common.Address{byte(counter), byte(counter &gt;&gt; 8), byte(counter &gt;&gt; 16), byte(counter &gt;&gt; 24)}
+                        state.GetBalance(addr)
+                        counter++
+                }</span>
+                <span class="cov8" title="1">update := common.Update{}
+                update.CreatedAccounts = make([]common.Address, 0, numInsertsPerBlock)
+                for j := 0; j &lt; numInsertsPerBlock; j++ </span><span class="cov8" title="1">{
+                        addr := common.Address{byte(counter), byte(counter &gt;&gt; 8), byte(counter &gt;&gt; 16), byte(counter &gt;&gt; 24)}
+                        update.CreatedAccounts = append(update.CreatedAccounts, addr)
+                        update.Nonces = append(update.Nonces, common.NonceUpdate{Account: addr, Nonce: common.ToNonce(1)})
+                        counter++
+                }</span>
+                <span class="cov8" title="1">if err := state.Apply(uint64(i), update); err != nil </span><span class="cov0" title="0">{
+                        return res, fmt.Errorf("error applying block %d: %v", i, err)
+                }</span>
+
+                <span class="cov8" title="1">if (i+1)%reportingInterval == 0 </span><span class="cov8" title="1">{
+                        if tracingEnabled </span><span class="cov0" title="0">{
+                                stopTracer()
+                        }</span>
+                        <span class="cov8" title="1">if profilingEnabled </span><span class="cov8" title="1">{
+                                stopCpuProfiler()
+                        }</span>
+                        <span class="cov8" title="1">startReporting := time.Now()
+
+                        throughput := float64(reportingInterval*numInsertsPerBlock) / startReporting.Sub(lastReportTime).Seconds()
+                        memory := state.GetMemoryFootprint().Total()
+                        disk := getDirectorySize(path)
+                        observer(
+                                "Reached block %d, memory %.2f GB, disk %.2f GB, %.2f inserts/second",
+                                i+1,
+                                float64(memory)/float64(1&lt;&lt;30),
+                                float64(disk)/float64(1&lt;&lt;30),
+                                throughput,
+                        )
+
+                        res.intervals = append(res.intervals, benchmarkRecord{
+                                endOfBlock: i + 1,
+                                memory:     int64(memory),
+                                disk:       disk,
+                                throughput: throughput,
+                        })
+
+                        endReporting := time.Now()
+                        reportingTime += endReporting.Sub(startReporting)
+                        lastReportTime = endReporting
+
+                        intervalNumber := ((i + 1) / reportingInterval) + 1
+                        if profilingEnabled </span><span class="cov8" title="1">{
+                                startCpuProfiler(fmt.Sprintf("%s_%06d", params.cpuProfilePrefix, intervalNumber))
+                        }</span>
+                        <span class="cov8" title="1">if tracingEnabled </span><span class="cov0" title="0">{
+                                startTracer(fmt.Sprintf("%s_%06d", params.traceFilePrefix, intervalNumber))
+                        }</span>
+                }
+        }
+        <span class="cov8" title="1">observer(
+                "Finished %.2e blocks with %.2e reads and %.2e inserts",
+                float64(numBlocks),
+                float64(numBlocks*numReadsPerBlock),
+                float64(numBlocks*numInsertsPerBlock),
+        )
+
+        benchmarkTime := time.Since(benchmarkStart)
+        res.numInserts = int64(counter)
+        res.insertTime = benchmarkTime - reportingTime
+        res.reportTime = reportingTime
+
+        return res, nil</span>
+}
+
+func startCpuProfiler(filename string) error <span class="cov8" title="1">{
+        f, err := os.Create(filename)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("could not create CPU profile: %s", err)
+        }</span>
+        <span class="cov8" title="1">if err := pprof.StartCPUProfile(f); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("could not start CPU profile: %s", err)
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}
+
+func stopCpuProfiler() <span class="cov8" title="1">{
+        pprof.StopCPUProfile()
+}</span>
+
+func startTracer(filename string) error <span class="cov0" title="0">{
+        traceFile, err := os.Create(filename)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to create trace file: %v", err)
+        }</span>
+        <span class="cov0" title="0">if err := trace.Start(traceFile); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to start trace: %v", err)
+        }</span>
+        <span class="cov0" title="0">return nil</span>
+}
+
+func stopTracer() <span class="cov0" title="0">{
+        trace.Stop()
+}</span>
+
+// GetDirectorySize computes the size of all files in the given directory in bytes.
+func getDirectorySize(directory string) int64 <span class="cov8" title="1">{
+        var sum int64 = 0
+        filepath.Walk(directory, func(path string, info fs.FileInfo, err error) error </span><span class="cov8" title="1">{
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil
+                }</span>
+                <span class="cov8" title="1">if !info.IsDir() </span><span class="cov8" title="1">{
+                        sum += info.Size()
+                }</span>
+                <span class="cov8" title="1">return nil</span>
+        })
+        <span class="cov8" title="1">return sum</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">// Copyright (c) 2024 Fantom Foundation
+//
+// Use of this software is governed by the Business Source License included
+// in the LICENSE file and at fantom.foundation/bsl11.
+//
+// Change Date: 2028-4-16
+//
+// On the date above, in accordance with the Business Source License, use of
+// this software will be governed by the GNU Lesser General Public License v3.
+
+package main
+
+import (
+        "fmt"
+        "strings"
+
+        "github.com/Fantom-foundation/Carmen/go/common"
+        "github.com/Fantom-foundation/Carmen/go/database/mpt"
+        "github.com/Fantom-foundation/Carmen/go/database/mpt/io"
+        "github.com/urfave/cli/v2"
+)
+
+var Block = cli.Command{
+        Action:    block,
+        Name:      "block",
+        Usage:     "retrieves information about a given block",
+        ArgsUsage: "&lt;archive-director&gt;",
+        Flags: []cli.Flag{
+                &amp;cpuProfileFlag,
+                &amp;targetBlockFlag,
+        },
+}
+
+var targetBlockFlag = cli.Uint64Flag{
+        Name:  "block",
+        Usage: "the block for which information should be obtained",
+}
+
+func block(context *cli.Context) error <span class="cov0" title="0">{
+        // parse the directory argument
+        if context.Args().Len() != 1 </span><span class="cov0" title="0">{
+                return fmt.Errorf("missing directory storing archive")
+        }</span>
+
+        // Start profiling ...
+        <span class="cov0" title="0">cpuProfileFileName := context.String(cpuProfileFlag.Name)
+        if strings.TrimSpace(cpuProfileFileName) != "" </span><span class="cov0" title="0">{
+                if err := startCpuProfiler(cpuProfileFileName); err != nil </span><span class="cov0" title="0">{
+                        return err
+                }</span>
+                <span class="cov0" title="0">defer stopCpuProfiler()</span>
+        }
+
+        <span class="cov0" title="0">dir := context.Args().Get(0)
+        block := context.Uint64(targetBlockFlag.Name)
+
+        // try to obtain information of the selected block
+        info, err := io.CheckMptDirectoryAndGetInfo(dir)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov0" title="0">archive, err := mpt.OpenArchiveTrie(dir, info.Config, mpt.NodeCacheConfig{Capacity: 1024})
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to open archive in %s: %w", dir, err)
+        }</span>
+
+        <span class="cov0" title="0">fmt.Printf("Block: %d\n", block)
+        hash, err := archive.GetHash(block)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to get hash for block %d: %w", block, err)
+        }</span>
+        <span class="cov0" title="0">fmt.Printf("Hash: %x\n", hash)
+
+        diff, err := archive.GetDiffForBlock(block)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to get diff for block %d: %w", block, err)
+        }</span>
+        <span class="cov0" title="0">fmt.Printf("%s\n", diff)
+        update, err := diffToUpdate(diff)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to convert diff to update: %w", err)
+        }</span>
+        <span class="cov0" title="0">fmt.Printf("%s\n", &amp;update)
+
+        if err := archive.Close(); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to close archive: %w", err)
+        }</span>
+        <span class="cov0" title="0">return nil</span>
+}
+
+func diffToUpdate(diff mpt.Diff) (common.Update, error) <span class="cov0" title="0">{
+        res := common.Update{}
+        for account, diff := range diff </span><span class="cov0" title="0">{
+                if diff.Reset </span><span class="cov0" title="0">{
+                        res.AppendDeleteAccount(account)
+                }</span>
+                <span class="cov0" title="0">if diff.Balance != nil </span><span class="cov0" title="0">{
+                        res.AppendBalanceUpdate(account, *diff.Balance)
+                }</span>
+                <span class="cov0" title="0">if diff.Nonce != nil </span><span class="cov0" title="0">{
+                        res.AppendNonceUpdate(account, *diff.Nonce)
+                }</span>
+                <span class="cov0" title="0">if diff.Code != nil </span><span class="cov0" title="0">{
+                        res.AppendCodeUpdate(account, (*diff.Code)[:])
+                }</span>
+                <span class="cov0" title="0">for key, value := range diff.Storage </span><span class="cov0" title="0">{
+                        res.AppendSlotUpdate(account, key, value)
+                }</span>
+        }
+        <span class="cov0" title="0">err := res.Normalize()
+        return res, err</span>
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">// Copyright (c) 2024 Fantom Foundation
+//
+// Use of this software is governed by the Business Source License included
+// in the LICENSE file and at fantom.foundation/bsl11.
+//
+// Change Date: 2028-4-16
+//
+// On the date above, in accordance with the Business Source License, use of
+// this software will be governed by the GNU Lesser General Public License v3.
+
+package main
+
+import (
+        "fmt"
+        "strings"
+
+        "github.com/Fantom-foundation/Carmen/go/database/mpt"
+        "github.com/Fantom-foundation/Carmen/go/database/mpt/io"
+        "github.com/urfave/cli/v2"
+)
+
+var Check = cli.Command{
+        Action:    check,
+        Name:      "check",
+        Usage:     "performs extensive invariants checks",
+        ArgsUsage: "&lt;director&gt;",
+        Flags: []cli.Flag{
+                &amp;cpuProfileFlag,
+        },
+}
+
+func check(context *cli.Context) error <span class="cov0" title="0">{
+        // parse the directory argument
+        if context.Args().Len() != 1 </span><span class="cov0" title="0">{
+                return fmt.Errorf("missing directory storing state")
+        }</span>
+
+        // Start profiling ...
+        <span class="cov0" title="0">cpuProfileFileName := context.String(cpuProfileFlag.Name)
+        if strings.TrimSpace(cpuProfileFileName) != "" </span><span class="cov0" title="0">{
+                if err := startCpuProfiler(cpuProfileFileName); err != nil </span><span class="cov0" title="0">{
+                        return err
+                }</span>
+                <span class="cov0" title="0">defer stopCpuProfiler()</span>
+        }
+
+        <span class="cov0" title="0">dir := context.Args().Get(0)
+
+        // try to obtain information of the contained MPT
+        info, err := io.CheckMptDirectoryAndGetInfo(dir)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov0" title="0">if info.Mode == mpt.Immutable </span><span class="cov0" title="0">{
+                fmt.Printf("Checking archive in %s ...\n", dir)
+                err = checkArchive(dir, info)
+        }</span> else<span class="cov0" title="0"> {
+                fmt.Printf("Checking live DB in %s ...\n", dir)
+                err = checkLiveDB(dir, info)
+        }</span>
+        <span class="cov0" title="0">if err == nil </span><span class="cov0" title="0">{
+                fmt.Printf("All checks passed!\n")
+        }</span>
+        <span class="cov0" title="0">return err</span>
+}
+
+func checkLiveDB(dir string, info io.MptInfo) error <span class="cov0" title="0">{
+        live, err := mpt.OpenFileLiveTrie(dir, info.Config, mpt.NodeCacheConfig{})
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov0" title="0">defer live.Close()
+        return live.Check()</span>
+}
+
+func checkArchive(dir string, info io.MptInfo) error <span class="cov0" title="0">{
+        archive, err := mpt.OpenArchiveTrie(dir, info.Config, mpt.NodeCacheConfig{})
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov0" title="0">defer archive.Close()
+        return archive.Check()</span>
+}
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">// Copyright (c) 2024 Fantom Foundation
+//
+// Use of this software is governed by the Business Source License included
+// in the LICENSE file and at fantom.foundation/bsl11.
+//
+// Change Date: 2028-4-16
+//
+// On the date above, in accordance with the Business Source License, use of
+// this software will be governed by the GNU Lesser General Public License v3.
+
+package main
+
+import (
+        "bufio"
+        "compress/gzip"
+        "errors"
+        "fmt"
+        "log"
+        "os"
+        "strings"
+        "time"
+
+        "github.com/Fantom-foundation/Carmen/go/common/interrupt"
+        "github.com/Fantom-foundation/Carmen/go/database/mpt"
+        "github.com/Fantom-foundation/Carmen/go/database/mpt/io"
+        "github.com/urfave/cli/v2"
+)
+
+var ExportCmd = cli.Command{
+        Action:    doExport,
+        Name:      "export",
+        Usage:     "exports a LiveDB or Archive instance into a file",
+        ArgsUsage: "&lt;db director&gt; &lt;target-file&gt;",
+        Flags: []cli.Flag{
+                &amp;cpuProfileFlag,
+                &amp;targetBlockFlag,
+        },
+}
+
+func doExport(context *cli.Context) error <span class="cov0" title="0">{
+        if context.Args().Len() != 2 </span><span class="cov0" title="0">{
+                return fmt.Errorf("missing state directory and/or target file parameter")
+        }</span>
+        <span class="cov0" title="0">dir := context.Args().Get(0)
+        trg := context.Args().Get(1)
+
+        // Start profiling ...
+        cpuProfileFileName := context.String(cpuProfileFlag.Name)
+        if strings.TrimSpace(cpuProfileFileName) != "" </span><span class="cov0" title="0">{
+                if err := startCpuProfiler(cpuProfileFileName); err != nil </span><span class="cov0" title="0">{
+                        return err
+                }</span>
+                <span class="cov0" title="0">defer stopCpuProfiler()</span>
+        }
+
+        // check the type of target database
+        <span class="cov0" title="0">mptInfo, err := io.CheckMptDirectoryAndGetInfo(dir)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov0" title="0">start := time.Now()
+        logFromStart(start, "export started")
+
+        file, err := os.Create(trg)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov0" title="0">bufferedWriter := bufio.NewWriter(file)
+        out := gzip.NewWriter(bufferedWriter)
+
+        ctx := interrupt.CancelOnInterrupt(context.Context)
+
+        var exportErr error
+        switch </span>{
+        case mptInfo.Mode == mpt.Immutable &amp;&amp; context.IsSet(targetBlockFlag.Name):<span class="cov0" title="0">
+                // Passed Archive and chosen block to export
+                blkNumber := context.Uint64(targetBlockFlag.Name)
+                exportErr = io.ExportFromArchive(ctx, dir, out, blkNumber)</span>
+        case mptInfo.Mode != mpt.Immutable:<span class="cov0" title="0">
+                // Passed LiveDB
+                exportErr = io.Export(ctx, dir, out)</span>
+        default:<span class="cov0" title="0">
+                // Passed Archive without chosen block
+                exportErr = io.ExportArchive(ctx, dir, out)</span>
+
+        }
+
+        <span class="cov0" title="0">if err = errors.Join(
+                exportErr,
+                out.Close(),
+                bufferedWriter.Flush(),
+                file.Close(),
+        ); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov0" title="0">logFromStart(start, "export done")
+        return nil</span>
+}
+
+func logFromStart(start time.Time, msg string) <span class="cov0" title="0">{
+        now := time.Now()
+        t := uint64(now.Sub(start).Seconds())
+        log.Printf("[t=%4d:%02d] - %s.\n", t/60, t%60, msg)
+}</span>
+</pre>
+		
+		<pre class="file" id="file4" style="display: none">// Copyright (c) 2024 Fantom Foundation
+//
+// Use of this software is governed by the Business Source License included
+// in the LICENSE file and at fantom.foundation/bsl11.
+//
+// Change Date: 2028-4-16
+//
+// On the date above, in accordance with the Business Source License, use of
+// this software will be governed by the GNU Lesser General Public License v3.
+
+package main
+
+import (
+        "bufio"
+        "compress/gzip"
+        "errors"
+        "fmt"
+        "io"
+        "os"
+        "strings"
+        "time"
+
+        mptIo "github.com/Fantom-foundation/Carmen/go/database/mpt/io"
+        "github.com/urfave/cli/v2"
+)
+
+var ImportLiveDbCmd = cli.Command{
+        Action:    doLiveDbImport,
+        Name:      "import-live-db",
+        Usage:     "imports a LiveDB instance from a file",
+        ArgsUsage: "&lt;source-file&gt; &lt;target director&gt;",
+        Flags: []cli.Flag{
+                &amp;cpuProfileFlag,
+        },
+}
+
+var ImportArchiveCmd = cli.Command{
+        Action:    doArchiveImport,
+        Name:      "import-archive",
+        Usage:     "imports an Archive instance from a file",
+        ArgsUsage: "&lt;source-file&gt; &lt;target director&gt;",
+        Flags: []cli.Flag{
+                &amp;cpuProfileFlag,
+        },
+}
+
+var ImportLiveAndArchiveCmd = cli.Command{
+        Action:    doLiveAndArchiveImport,
+        Name:      "import",
+        Usage:     "imports both LiveDB and Archive instance from a file",
+        ArgsUsage: "&lt;source-file&gt; &lt;target director&gt;",
+        Flags: []cli.Flag{
+                &amp;cpuProfileFlag,
+        },
+}
+
+func doLiveDbImport(context *cli.Context) error <span class="cov0" title="0">{
+        return doImport(context, mptIo.ImportLiveDb)
+}</span>
+
+func doArchiveImport(context *cli.Context) error <span class="cov0" title="0">{
+        return doImport(context, mptIo.ImportArchive)
+}</span>
+
+func doLiveAndArchiveImport(context *cli.Context) error <span class="cov0" title="0">{
+        return doImport(context, mptIo.ImportLiveAndArchive)
+}</span>
+
+func doImport(context *cli.Context, runImport func(directory string, in io.Reader) error) error <span class="cov0" title="0">{
+        if context.Args().Len() != 2 </span><span class="cov0" title="0">{
+                return fmt.Errorf("missing source file and/or target directory parameter")
+        }</span>
+        <span class="cov0" title="0">src := context.Args().Get(0)
+        dir := context.Args().Get(1)
+
+        // Start profiling ...
+        cpuProfileFileName := context.String(cpuProfileFlag.Name)
+        if strings.TrimSpace(cpuProfileFileName) != "" </span><span class="cov0" title="0">{
+                if err := startCpuProfiler(cpuProfileFileName); err != nil </span><span class="cov0" title="0">{
+                        return err
+                }</span>
+                <span class="cov0" title="0">defer stopCpuProfiler()</span>
+        }
+
+        <span class="cov0" title="0">if err := os.MkdirAll(dir, 0700); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("error creating output directory: %v", err)
+        }</span>
+
+        <span class="cov0" title="0">start := time.Now()
+        logFromStart(start, "import started")
+        file, err := os.Open(src)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov0" title="0">var in io.Reader = bufio.NewReader(file)
+        if in, err = gzip.NewReader(in); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov0" title="0">defer func() </span><span class="cov0" title="0">{
+                logFromStart(start, "import done")
+        }</span>()
+        <span class="cov0" title="0">return errors.Join(
+                runImport(dir, in),
+                file.Close(),
+        )</span>
+}
+</pre>
+		
+		<pre class="file" id="file5" style="display: none">// Copyright (c) 2024 Fantom Foundation
+//
+// Use of this software is governed by the Business Source License included
+// in the LICENSE file and at fantom.foundation/bsl11.
+//
+// Change Date: 2028-4-16
+//
+// On the date above, in accordance with the Business Source License, use of
+// this software will be governed by the GNU Lesser General Public License v3.
+
+package main
+
+import (
+        "fmt"
+
+        "github.com/Fantom-foundation/Carmen/go/database/mpt"
+        "github.com/Fantom-foundation/Carmen/go/database/mpt/io"
+        "github.com/urfave/cli/v2"
+)
+
+var Info = cli.Command{
+        Action: info,
+        Name:   "info",
+        Usage:  "lists information about a Carmen MTP state repository",
+        Flags: []cli.Flag{
+                &amp;statsFlag,
+        },
+        ArgsUsage: "&lt;director&gt;",
+}
+
+var (
+        statsFlag = cli.BoolFlag{
+                Name:  "stats",
+                Usage: "Compute and print node statistics",
+        }
+)
+
+func info(context *cli.Context) error <span class="cov0" title="0">{
+        // parse the directory argument
+        if context.Args().Len() != 1 </span><span class="cov0" title="0">{
+                return fmt.Errorf("missing directory storing state")
+        }</span>
+        <span class="cov0" title="0">dir := context.Args().Get(0)
+
+        withStats := context.Bool(statsFlag.Name)
+
+        // try to obtain information of the contained MPT
+        mptInfo, err := io.CheckMptDirectoryAndGetInfo(dir)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov0" title="0">fmt.Printf("Directory contains an MPT State with the following properties:\n")
+        fmt.Printf("\tMPT Configuration: %v\n", mptInfo.Config.Name)
+        fmt.Printf("\tMode:              %v\n", mptInfo.Mode)
+
+        // attempt to open the MPT
+        if mptInfo.Mode == mpt.Mutable </span><span class="cov0" title="0">{
+                trie, err := mpt.OpenFileLiveTrie(dir, mptInfo.Config, mpt.NodeCacheConfig{})
+                if err != nil </span><span class="cov0" title="0">{
+                        fmt.Printf("\tFailed to open:    %v\n", err)
+                        return nil
+                }</span> else<span class="cov0" title="0"> {
+                        fmt.Printf("\tCan be opened:     Yes\n")
+                }</span>
+
+                <span class="cov0" title="0">if withStats </span><span class="cov0" title="0">{
+                        fmt.Printf("\nCollecting Node Statistics ...\n")
+                        stats, err := mpt.GetTrieNodeStatistics(trie)
+                        if err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                        <span class="cov0" title="0">fmt.Print("\n--- Node Statistics ---\n")
+                        fmt.Println(stats.String())</span>
+                }
+
+                <span class="cov0" title="0">if err := trie.Close(); err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("error closing forest: %v", err)
+                }</span>
+        } else<span class="cov0" title="0"> {
+                archive, err := mpt.OpenArchiveTrie(dir, mptInfo.Config, mpt.NodeCacheConfig{})
+                if err != nil </span><span class="cov0" title="0">{
+                        fmt.Printf("\tFailed to open:    %v\n", err)
+                        return nil
+                }</span> else<span class="cov0" title="0"> {
+                        fmt.Printf("\tCan be opened:     Yes\n")
+                }</span>
+
+                <span class="cov0" title="0">height, empty, err := archive.GetBlockHeight()
+                if err != nil </span><span class="cov0" title="0">{
+                        fmt.Printf("\tBlock height:      %v\n", err)
+                }</span> else<span class="cov0" title="0"> if empty </span><span class="cov0" title="0">{
+                        fmt.Printf("\tBlock height:      empty\n")
+                }</span> else<span class="cov0" title="0"> {
+                        fmt.Printf("\tBlock height:      %d\n", height)
+                }</span>
+
+                <span class="cov0" title="0">if err := archive.Close(); err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("error closing forest: %v", err)
+                }</span>
+
+                <span class="cov0" title="0">if withStats </span><span class="cov0" title="0">{
+                        fmt.Printf("\nCollecting Node Statistics ...\n")
+                        stats, err := mpt.GetForestNodeStatistics(dir, mptInfo.Config)
+                        if err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                        <span class="cov0" title="0">fmt.Print("\n--- Node Statistics ---\n")
+                        fmt.Println(stats.String())</span>
+                }
+
+        }
+
+        <span class="cov0" title="0">return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file6" style="display: none">// Copyright (c) 2024 Fantom Foundation
+//
+// Use of this software is governed by the Business Source License included
+// in the LICENSE file and at fantom.foundation/bsl11.
+//
+// Change Date: 2028-4-16
+//
+// On the date above, in accordance with the Business Source License, use of
+// this software will be governed by the GNU Lesser General Public License v3.
+
+package main
+
+import (
+        "bufio"
+        "compress/gzip"
+        "errors"
+        "fmt"
+        "io"
+        "os"
+
+        mptIo "github.com/Fantom-foundation/Carmen/go/database/mpt/io"
+        "github.com/urfave/cli/v2"
+)
+
+var InitArchive = cli.Command{
+        Action:    doArchiveInit,
+        Name:      "init-archive",
+        Usage:     "initializes an Archive instance from a file",
+        ArgsUsage: "&lt;source-file&gt; &lt;archive target director&gt;",
+        Flags: []cli.Flag{
+                &amp;blockHeightFlag,
+        },
+}
+
+var (
+        blockHeightFlag = cli.Uint64Flag{
+                Name:  "block-height",
+                Usage: "the block height the input file is describing",
+        }
+)
+
+func doArchiveInit(context *cli.Context) error <span class="cov0" title="0">{
+        if context.Args().Len() != 2 </span><span class="cov0" title="0">{
+                return fmt.Errorf("missing source file and/or target directory parameter")
+        }</span>
+        <span class="cov0" title="0">src := context.Args().Get(0)
+        dir := context.Args().Get(1)
+
+        if err := os.Mkdir(dir, 0700); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("error creating output directory: %v", err)
+        }</span>
+
+        <span class="cov0" title="0">height := context.Uint64(blockHeightFlag.Name)
+
+        file, err := os.Open(src)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov0" title="0">var in io.Reader = bufio.NewReader(file)
+        if in, err = gzip.NewReader(in); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov0" title="0">return errors.Join(
+                mptIo.InitializeArchive(dir, in, height),
+                file.Close(),
+        )</span>
+}
+</pre>
+		
+		<pre class="file" id="file7" style="display: none">// Copyright (c) 2024 Fantom Foundation
+//
+// Use of this software is governed by the Business Source License included
+// in the LICENSE file and at fantom.foundation/bsl11.
+//
+// Change Date: 2028-4-16
+//
+// On the date above, in accordance with the Business Source License, use of
+// this software will be governed by the GNU Lesser General Public License v3.
+
+package main
+
+import (
+        "fmt"
+        "os"
+
+        "github.com/urfave/cli/v2"
+)
+
+// Run using
+//  go run ./database/mpt/tool &lt;command&gt; &lt;flags&gt;
+
+func main() <span class="cov0" title="0">{
+        app := &amp;cli.App{
+                Name:      "tool",
+                Usage:     "Carmen MPT toolbox",
+                Copyright: "(c) 2022-23 Fantom Foundation",
+                Flags:     []cli.Flag{},
+                Commands: []*cli.Command{
+                        &amp;Check,
+                        &amp;ExportCmd,
+                        &amp;ImportLiveDbCmd,
+                        &amp;ImportArchiveCmd,
+                        &amp;ImportLiveAndArchiveCmd,
+                        &amp;Info,
+                        &amp;InitArchive,
+                        &amp;Verify,
+                        &amp;Benchmark,
+                        &amp;Block,
+                        &amp;StressTestCmd,
+                },
+        }
+
+        if err := app.Run(os.Args); err != nil </span><span class="cov0" title="0">{
+                fmt.Fprintln(os.Stderr, err)
+                os.Exit(1)
+        }</span>
+}
+</pre>
+		
+		<pre class="file" id="file8" style="display: none">// Copyright (c) 2024 Fantom Foundation
+//
+// Use of this software is governed by the Business Source License included
+// in the LICENSE file and at fantom.foundation/bsl11.
+//
+// Change Date: 2028-4-16
+//
+// On the date above, in accordance with the Business Source License, use of
+// this software will be governed by the GNU Lesser General Public License v3.
+
+package main
+
+import (
+        "fmt"
+        "log"
+        "math/rand"
+        "os"
+        "runtime"
+        "sync"
+        "syscall"
+        "time"
+
+        "github.com/Fantom-foundation/Carmen/go/common"
+        "github.com/Fantom-foundation/Carmen/go/common/interrupt"
+        "github.com/Fantom-foundation/Carmen/go/database/mpt"
+        "github.com/urfave/cli/v2"
+)
+
+// StressTestCmd is a command to stress test an MPT database. In particular,
+// this command performs random inserts, updates, and account deletions on
+// an MPT data base with the aim of stress-testing core components like the
+// node cache, the write buffer, and the background flush mechanism.
+var StressTestCmd = cli.Command{
+        Action: stressTest,
+        Name:   "stress-test",
+        Usage:  "stress test an MPT database",
+        Flags: []cli.Flag{
+                &amp;tmpDirFlag,
+                &amp;numBlocksFlag,
+                &amp;reportPeriodFlag,
+                &amp;flushPeriodFlag,
+        },
+}
+
+var (
+        flushPeriodFlag = cli.DurationFlag{
+                Name:  "flush-period",
+                Usage: "the time between background node flushes, disabled if negative",
+                Value: time.Millisecond,
+        }
+        reportPeriodFlag = cli.DurationFlag{
+                Name:  "report-period",
+                Usage: "the time between reports",
+                Value: 5 * time.Second,
+        }
+)
+
+func stressTest(context *cli.Context) error <span class="cov0" title="0">{
+        const (
+                MiB       = 1024 * 1024
+                cacheSize = 64 * MiB
+        )
+
+        tmpDir := context.String(tmpDirFlag.Name)
+        if len(tmpDir) == 0 </span><span class="cov0" title="0">{
+                tmpDir = os.TempDir()
+        }</span>
+
+        <span class="cov0" title="0">dir, err := os.MkdirTemp(tmpDir, "carmen-stress-*")
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to create temporary directory: %w", err)
+        }</span>
+        <span class="cov0" title="0">log.Printf("Using temporary directory: %s\n", dir)
+
+        flushPeriod := context.Duration(flushPeriodFlag.Name)
+        log.Printf("Using background flush period: %s\n", flushPeriod)
+
+        reportPeriod := context.Duration(reportPeriodFlag.Name)
+        log.Printf("Using report period: %s\n", reportPeriod)
+
+        cacheConfig := mpt.NodeCacheConfig{
+                Capacity:              cacheSize / mpt.EstimatePerNodeMemoryUsage(),
+                BackgroundFlushPeriod: flushPeriod,
+        }
+
+        db, err := mpt.OpenGoFileState(dir, mpt.S5LiveConfig, cacheConfig)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to open database: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">numBlocks := context.Int(numBlocksFlag.Name)
+        if numBlocks &lt;= 0 </span><span class="cov0" title="0">{
+                numBlocks = 1000
+        }</span>
+        <span class="cov0" title="0">log.Printf("Inserting %d blocks ...\n", numBlocks)
+
+        state := createTestState(db, dir)
+
+        var reportWg sync.WaitGroup
+        reportWg.Add(1)
+        stopReport := make(chan struct{})
+        reporterStopped := false
+        stopReporter := func() </span><span class="cov0" title="0">{
+                if reporterStopped </span><span class="cov0" title="0">{
+                        return
+                }</span>
+                <span class="cov0" title="0">close(stopReport)
+                reportWg.Wait()
+                reporterStopped = true</span>
+        }
+        <span class="cov0" title="0">defer stopReporter()
+        go func() </span><span class="cov0" title="0">{
+                defer reportWg.Done()
+                ticker := time.NewTicker(reportPeriod)
+                for </span><span class="cov0" title="0">{
+                        select </span>{
+                        case &lt;-stopReport:<span class="cov0" title="0">
+                                return</span>
+                        case &lt;-ticker.C:<span class="cov0" title="0">
+                                state.ReportProgress()</span>
+                        }
+                }
+        }()
+
+        <span class="cov0" title="0">aborted := false
+        ctx := interrupt.CancelOnInterrupt(context.Context)
+        rand := rand.New(rand.NewSource(state.start.UnixNano()))
+        for i := 0; i &lt; numBlocks; i++ </span><span class="cov0" title="0">{
+                if interrupt.IsCancelled(ctx) </span><span class="cov0" title="0">{
+                        aborted = true
+                        break</span>
+                }
+                <span class="cov0" title="0">if err := state.AddBlock(rand); err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("failed to add block %d: %w", i, err)
+                }</span>
+        }
+
+        <span class="cov0" title="0">stopReporter()
+
+        if !aborted </span><span class="cov0" title="0">{
+                log.Printf("Processed %d blocks successfully\n", numBlocks)
+                log.Printf("Closing and deleting database ...\n")
+        }</span>
+
+        <span class="cov0" title="0">if err := db.Close(); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to close database: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">if err := os.RemoveAll(dir); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to remove directory: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">if !aborted </span><span class="cov0" title="0">{
+                log.Printf("Done\n")
+        }</span>
+
+        <span class="cov0" title="0">return nil</span>
+}
+
+// --- Stress Test State ---
+type stressTestState struct {
+        start       time.Time
+        directory   string
+        db          *mpt.MptState
+        lock        sync.Mutex
+        state       map[int]map[int]int
+        blockHeight int
+        nextAccount int
+        nextKey     int
+}
+
+func createTestState(db *mpt.MptState, directory string) *stressTestState <span class="cov0" title="0">{
+        return &amp;stressTestState{
+                directory: directory,
+                db:        db,
+                start:     time.Now(),
+                state:     map[int]map[int]int{},
+        }
+}</span>
+
+func (s *stressTestState) ReportProgress() <span class="cov0" title="0">{
+        memUsage := getMemoryUsage()
+        used := getDirectorySize(s.directory)
+        free, err := getFreeSpace(s.directory)
+        if err != nil </span><span class="cov0" title="0">{
+                log.Printf("failed to get free space: %v\n", err)
+                return
+        }</span>
+
+        <span class="cov0" title="0">s.lock.Lock()
+        numAccounts := len(s.state)
+        numSlots := 0
+        for _, storage := range s.state </span><span class="cov0" title="0">{
+                numSlots += len(storage)
+        }</span>
+        <span class="cov0" title="0">currentBlock := s.blockHeight
+        s.lock.Unlock()
+
+        time := time.Since(s.start)
+        seconds := int(time.Seconds())
+        hours := seconds / 3600
+        minutes := (seconds / 60) % 60
+        seconds = seconds % 60
+        const GiB = 1024 * 1024 * 1024
+        log.Printf(
+                "[%d:%02d:%02d] Block %d added, managing %d accounts, %d slots, memory: %.2f GiB, disk used: %.2f GiB, disk free: %.2f GiB\n",
+                hours, minutes, seconds,
+                currentBlock,
+                numAccounts,
+                numSlots,
+                float64(memUsage)/GiB,
+                float64(used)/GiB,
+                float64(free)/GiB,
+        )</span>
+}
+
+func (s *stressTestState) AddBlock(rand *rand.Rand) error <span class="cov0" title="0">{
+        const (
+                changesPerBlock = 1000
+        )
+        s.lock.Lock()
+        defer s.lock.Unlock()
+        for j := 0; j &lt; changesPerBlock; j++ </span><span class="cov0" title="0">{
+                // Select between insert, update, and delete operations.
+                // The proportions have been adjusted to produce a slow
+                // growth of the database and to have good chances of
+                // deleting reasonable large accounts with a few dozen
+                // slots.
+                var err error
+                switch c := rand.Float32(); </span>{
+                case c &lt; 0.65:<span class="cov0" title="0">
+                        err = s.addSlot()</span>
+                case c &lt; 0.995:<span class="cov0" title="0">
+                        err = s.updateSlot()</span>
+                default:<span class="cov0" title="0">
+                        err = s.deleteAccount()</span>
+                }
+                <span class="cov0" title="0">if err != nil </span><span class="cov0" title="0">{
+                        return err
+                }</span>
+        }
+
+        <span class="cov0" title="0">if _, _, err := s.db.UpdateHashes(); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to update hashes: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">s.blockHeight++
+        return nil</span>
+}
+
+func (s *stressTestState) addSlot() error <span class="cov0" title="0">{
+        isNewAccount := false
+        addrIndex := 0
+        if len(s.state) &gt; 0 &amp;&amp; rand.Float32() &lt; 0.98 </span><span class="cov0" title="0">{ // &lt; most of the time an old account is re-used
+                addrIndex = s.getRandomAccountIndex()
+        }</span> else<span class="cov0" title="0"> {
+                addrIndex = s.nextAccount
+                s.nextAccount++
+                isNewAccount = true
+        }</span>
+        <span class="cov0" title="0">addr := intToAddress(addrIndex)
+
+        if isNewAccount </span><span class="cov0" title="0">{
+                s.state[addrIndex] = map[int]int{}
+                if err := s.db.SetNonce(addr, common.ToNonce(1)); err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("failed to create account: %w", err)
+                }</span>
+        }
+
+        <span class="cov0" title="0">storage := s.state[addrIndex]
+        keyIndex := s.nextKey
+        s.nextKey++
+        key := intToKey(keyIndex)
+
+        current, err := s.db.GetStorage(addr, key)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to get value: %w", err)
+        }</span>
+        <span class="cov0" title="0">if want, got := (common.Value{}), current; want != got </span><span class="cov0" title="0">{
+                return fmt.Errorf("unexpected value %d/%d - wanted %x, got %x", addrIndex, keyIndex, want, got)
+        }</span>
+
+        <span class="cov0" title="0">value := intToValue(1)
+        if err := s.db.SetStorage(addr, key, value); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to set value: %w", err)
+        }</span>
+        <span class="cov0" title="0">storage[keyIndex] = 1
+        return nil</span>
+}
+
+func (s *stressTestState) updateSlot() error <span class="cov0" title="0">{
+        if len(s.state) == 0 </span><span class="cov0" title="0">{
+                return nil
+        }</span>
+        <span class="cov0" title="0">addrIndex := s.getRandomAccountIndex()
+        addr := intToAddress(addrIndex)
+        storage := s.state[addrIndex]
+
+        keyIndex := 0
+        for i := range storage </span><span class="cov0" title="0">{
+                keyIndex = i
+                break</span>
+        }
+        <span class="cov0" title="0">key := intToKey(keyIndex)
+
+        current, err := s.db.GetStorage(addr, key)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to get value: %w", err)
+        }</span>
+        <span class="cov0" title="0">if want, got := intToValue(storage[keyIndex]), current; want != got </span><span class="cov0" title="0">{
+                return fmt.Errorf("unexpected value %v/%v before update - wanted %x, got %x", addr, key, want, got)
+        }</span>
+
+        <span class="cov0" title="0">newValue := storage[keyIndex] + 1
+        value := intToValue(newValue)
+        if err := s.db.SetStorage(addr, key, value); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to set value: %w", err)
+        }</span>
+        <span class="cov0" title="0">storage[keyIndex] = newValue
+        return nil</span>
+}
+
+func (s *stressTestState) deleteAccount() error <span class="cov0" title="0">{
+        if len(s.state) == 0 </span><span class="cov0" title="0">{
+                return nil
+        }</span>
+        <span class="cov0" title="0">addrIndex := s.getRandomAccountIndex()
+        addr := intToAddress(addrIndex)
+        if err := s.db.DeleteAccount(addr); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to remove account: %w", err)
+        }</span>
+        <span class="cov0" title="0">delete(s.state, addrIndex)
+        return nil</span>
+}
+
+func (s *stressTestState) getRandomAccountIndex() int <span class="cov0" title="0">{
+        for i := range s.state </span><span class="cov0" title="0">{ // iteration order is random, we pick the first one
+                return i
+        }</span>
+        <span class="cov0" title="0">panic("no accounts")</span>
+}
+
+// --- utility functions ---
+
+func intToAddress(i int) common.Address <span class="cov0" title="0">{
+        return common.Address{byte(i), byte(i &gt;&gt; 8), byte(i &gt;&gt; 16), byte(i &gt;&gt; 24)}
+}</span>
+
+func intToKey(i int) common.Key <span class="cov0" title="0">{
+        return common.Key{byte(i), byte(i &gt;&gt; 8), byte(i &gt;&gt; 16), byte(i &gt;&gt; 24)}
+}</span>
+
+func intToValue(i int) common.Value <span class="cov0" title="0">{
+        return common.Value{byte(i), byte(i &gt;&gt; 8), byte(i &gt;&gt; 16), byte(i &gt;&gt; 24)}
+}</span>
+
+// GetFreeSpace returns the amount of free space in bytes on the filesystem containing the given path.
+func getFreeSpace(path string) (int64, error) <span class="cov0" title="0">{
+        fs := syscall.Statfs_t{}
+        err := syscall.Statfs(path, &amp;fs)
+        if err != nil </span><span class="cov0" title="0">{
+                return 0, err
+        }</span>
+        <span class="cov0" title="0">return int64(fs.Bavail) * int64(fs.Bsize), nil</span>
+}
+
+func getMemoryUsage() uint64 <span class="cov0" title="0">{
+        var m runtime.MemStats
+        runtime.ReadMemStats(&amp;m)
+        return m.Alloc
+}</span>
+</pre>
+		
+		<pre class="file" id="file9" style="display: none">// Copyright (c) 2024 Fantom Foundation
+//
+// Use of this software is governed by the Business Source License included
+// in the LICENSE file and at fantom.foundation/bsl11.
+//
+// Change Date: 2028-4-16
+//
+// On the date above, in accordance with the Business Source License, use of
+// this software will be governed by the GNU Lesser General Public License v3.
+
+package main
+
+import (
+        "fmt"
+        "strings"
+        "time"
+
+        "github.com/Fantom-foundation/Carmen/go/database/mpt"
+        "github.com/Fantom-foundation/Carmen/go/database/mpt/io"
+        "github.com/urfave/cli/v2"
+)
+
+var Verify = cli.Command{
+        Action:    verify,
+        Name:      "verify",
+        Usage:     "verifies the consistency of an MPT",
+        ArgsUsage: "&lt;director&gt;",
+        Flags: []cli.Flag{
+                &amp;cpuProfileFlag,
+        },
+}
+
+func verify(context *cli.Context) error <span class="cov0" title="0">{
+        // parse the directory argument
+        if context.Args().Len() != 1 </span><span class="cov0" title="0">{
+                return fmt.Errorf("missing directory storing state")
+        }</span>
+
+        // Start profiling ...
+        <span class="cov0" title="0">cpuProfileFileName := context.String(cpuProfileFlag.Name)
+        if strings.TrimSpace(cpuProfileFileName) != "" </span><span class="cov0" title="0">{
+                if err := startCpuProfiler(cpuProfileFileName); err != nil </span><span class="cov0" title="0">{
+                        return err
+                }</span>
+                <span class="cov0" title="0">defer stopCpuProfiler()</span>
+        }
+
+        <span class="cov0" title="0">dir := context.Args().Get(0)
+
+        // try to obtain information of the contained MPT
+        info, err := io.CheckMptDirectoryAndGetInfo(dir)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        // run forest verification
+        <span class="cov0" title="0">observer := &amp;verificationObserver{}
+
+        if info.Mode == mpt.Immutable </span><span class="cov0" title="0">{
+                return mpt.VerifyArchiveTrie(dir, info.Config, observer)
+        }</span>
+        <span class="cov0" title="0">return mpt.VerifyFileLiveTrie(dir, info.Config, observer)</span>
+}
+
+type verificationObserver struct {
+        start time.Time
+}
+
+func (o *verificationObserver) StartVerification() <span class="cov0" title="0">{
+        o.start = time.Now()
+        o.printHeader()
+        fmt.Println("Starting verification ...")
+}</span>
+
+func (o *verificationObserver) Progress(msg string) <span class="cov0" title="0">{
+        o.printHeader()
+        fmt.Println(msg)
+}</span>
+
+func (o *verificationObserver) EndVerification(res error) <span class="cov0" title="0">{
+        if res == nil </span><span class="cov0" title="0">{
+                o.printHeader()
+                fmt.Println("Verification successful!")
+        }</span>
+}
+
+func (o *verificationObserver) printHeader() <span class="cov0" title="0">{
+        now := time.Now()
+        t := uint64(now.Sub(o.start).Seconds())
+        fmt.Printf("%s [t=%4d:%02d] - ", now.Format("15:04:05"), t/60, t%60)
+}</span>
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

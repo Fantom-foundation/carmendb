@@ -1,0 +1,30 @@
+Index: scripts/db-heal-test.sh
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>#!/bin/bash\n\n###########################\n#--- Dynamic variables ---#\n###########################\n\n# Aida paths\naida_path=''\naida_db_path=''\ntmp_path=''\n\nnumber_of_iterations=$1\n\nif [ -z \"$1\" ]; then\n  echo \"Arg 1 not set - Setting number of iterations to 100.\"\n  number_of_iterations=100\nfi\n\n\n# Block variables\nfirst_block=0\nlast_block=1000\nkill_block=900\nrestore_block=800\n\n##########################\n#--- Static variables ---#\n##########################\n\ncarmen_root=$(cd ../go && pwd)\n\n\n################\n#--- Script ---#\n################\n\n# Run the command in the background and redirect stdout and stderr to a log file\nlog_file=\"$(pwd)/output.log\"\ncurrent=$(pwd)\n\n# First iteration has different command\ncmd=\"./build/aida-vm-sdb substate --validate --db-tmp \"$tmp_path\" --carmen-schema 5 --db-impl carmen --aida-db \"$aida_db_path\" --no-heartbeat-logging --track-progress --archive --archive-variant s5 --archive-query-rate 200 --carmen-cp-interval 200 \"$first_block\" \"$last_block\"\"\ncd $aida_path\n$cmd &> \"$log_file\" &\ncommand_pid=$!\ncd $current\n\necho \"Creating database with aida-vm-sdb...\"\n\n# Function to monitor the log file\nmonitor_log() {\n  tail -F \"$log_file\" | while read LINE; do\n    echo \"$LINE\" | grep -q \"block $kill_block\"\n    if [ $? -eq 0 ]; then\n      echo \"Interrupting.\"\n      kill $command_pid\n      exit 0\n    fi\n  done\n}\n\n# Start monitoring the log file\nmonitor_log\n\n# Wait for the first command to complete\nwait $command_pid\n\n# Find working dir\nworking_dir=$(ls -td \"$tmp_path\"/*/ | head -1)\narchive=\"${working_dir}archive\"\nlive=\"${working_dir}live\"\n\necho \"Testing db created, starting loop.\"\n\nfor ((i=1; i<=number_of_iterations; i++)); do\n  # Restore Archive\n  (cd $carmen_root && go run ./database/mpt/tool reset --force-unlock \"$archive\" \"$restore_block\")\n\n  # Export genesis to restore LiveDB\n  genesis=\"${tmp_path}test_genesis.dat\"\n\n  echo \"Restoration complete. Exporting LiveDB genesis block \"$restore_block\".\"\n  (cd $carmen_root && go run ./database/mpt/tool export --block \"$restore_block\" \"$archive\" \"$genesis\")\n\n  # Restore LiveDB\n  echo \"Export complete. Applying LiveDB genesis.\"\n  rm -rf \"$live\"\n  (cd $carmen_root && go run ./database/mpt/tool import-live-db \"$genesis\" \"$live\")\n\n  echo \"Iteration \"$i\"/\"$number_of_iterations\"\"\n  first_block=$((restore_block + 1))\n  last_block=$((last_block + 1000))\n  restore_block=$((restore_block + 1000))\n  kill_block=$((kill_block + 1000))\n\n  echo \"Syncing to block \"$last_block\"...\"\n  command=\"./build/aida-vm-sdb substate --validate --db-tmp \"$tmp_path\" --carmen-schema 5 --db-impl carmen --aida-db \"$aida_db_path\" --no-heartbeat-logging --track-progress --archive --archive-variant s5 --archive-query-rate 200 --carmen-cp-interval 200 --db-src \"$working_dir\" --skip-priming \"$first_block\" \"$last_block\"\"\n\n  cd $aida_path\n  $command &> \"$log_file\" &\n  command_pid=$!\n  cd $current\n\n  # Start monitoring the log file\n  monitor_log\n\n  # Wait for the command to complete\n  wait $command_pid\n\n\n  # Re-find working dir - Aida copies db-src\n  working_dir=$(ls -td \"$tmp_path\"/*/ | head -1)\n  archive=\"${working_dir}archive\"\n  live=\"${working_dir}live\"\n\ndone\n\nrm $log_file\n\nexit 0
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/scripts/db-heal-test.sh b/scripts/db-heal-test.sh
+--- a/scripts/db-heal-test.sh	(revision 606f9c6a4d8378fb944c505911f56321bd6a86dc)
++++ b/scripts/db-heal-test.sh	(date 1724100369838)
+@@ -72,6 +72,9 @@
+ 
+ echo "Testing db created, starting loop."
+ 
++# Save last working dir to remove it
++last_working_dir=""
++
+ for ((i=1; i<=number_of_iterations; i++)); do
+   # Restore Archive
+   (cd $carmen_root && go run ./database/mpt/tool reset --force-unlock "$archive" "$restore_block")
+@@ -107,6 +110,9 @@
+   # Wait for the command to complete
+   wait $command_pid
+ 
++  # Remove unused dir and save current dir to be deleted next iteration.
++  rm -rf "$last_working_dir"
++  last_working_dir="$working_dir"
+ 
+   # Re-find working dir - Aida copies db-src
+   working_dir=$(ls -td "$tmp_path"/*/ | head -1)

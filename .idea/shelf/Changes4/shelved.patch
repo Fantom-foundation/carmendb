@@ -1,0 +1,305 @@
+Index: go/database/mpt/io/interrupt_test.go
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>// Copyright (c) 2024 Fantom Foundation\n//\n// Use of this software is governed by the Business Source License included\n// in the LICENSE file and at fantom.foundation/bsl11.\n//\n// Change Date: 2028-4-16\n//\n// On the date above, in accordance with the Business Source License, use of\n// this software will be governed by the GNU Lesser General Public License v3.\n\npackage io\n\nimport (\n\t\"errors\"\n\t\"io\"\n\t\"strings\"\n\t\"syscall\"\n\t\"testing\"\n\t\"time\"\n\n\t\"github.com/Fantom-foundation/Carmen/go/database/mpt\"\n)\n\nfunc TestExport_CanBeInterrupted(t *testing.T) {\n\ttype testFuncs struct {\n\t\t// export is the tested export func\n\t\texport func(string, io.Writer) error\n\t\t// createDB is an init of the database\n\t\tcreateDB func(t *testing.T, sourceDir string)\n\t\t// check that the interrupted did not corrupt the db by re-opening it\n\t\tcheck func(t *testing.T, sourceDir string)\n\t}\n\n\ttests := map[string]testFuncs{\n\t\t\"live\": {\n\t\t\texport:   Export,\n\t\t\tcreateDB: createTestLive,\n\t\t\tcheck:    checkCanOpenLiveDB,\n\t\t},\n\t\t\"archive\": {\n\t\t\texport:   ExportArchive,\n\t\t\tcreateDB: createTestArchive,\n\t\t\tcheck:    checkCanOpenArchive,\n\t\t},\n\t}\n\n\tfor name, tf := range tests {\n\t\tt.Run(name, func(t *testing.T) {\n\t\t\t// Create a small db to be exported.\n\t\t\tsourceDir := t.TempDir()\n\t\t\ttf.createDB(t, sourceDir)\n\n\t\t\twriter := &mockWriter{signalInterrupt: false}\n\t\t\t// first find number of writes\n\t\t\tif err := tf.export(sourceDir, writer); err != nil {\n\t\t\t\tt.Fatalf(\"unexpected error: %v\", err)\n\t\t\t}\n\n\t\t\t// save max count and reset number of writes\n\t\t\tmaxCount := writer.numOfWrites\n\t\t\t// reset number of writes, so we can compare\n\t\t\t// that export was indeed interrupted\n\t\t\twriter.numOfWrites = 0\n\t\t\twriter.signalInterrupt = true\n\n\t\t\terr := tf.export(sourceDir, writer)\n\t\t\tif err == nil {\n\t\t\t\tt.Fatal(\"export was interrupted, error must not be nil\")\n\t\t\t}\n\n\t\t\tgot := err.Error()\n\t\t\twant := ErrCanceled.Error()\n\t\t\tif !strings.Contains(got, want) {\n\t\t\t\tt.Errorf(\"unexpected error: got: %v, want: %v\", got, want)\n\t\t\t}\n\n\t\t\tif maxCount == writer.numOfWrites {\n\t\t\t\tt.Error(\"export was not interrupted\")\n\t\t\t}\n\n\t\t\t// lastly check that the database is not corrupted\n\t\t\ttf.check(t, sourceDir)\n\t\t})\n\t}\n}\n\nfunc createTestLive(t *testing.T, sourceDir string) {\n\tt.Helper()\n\tdb := createExampleLiveDB(t, sourceDir)\n\tif err := db.Close(); err != nil {\n\t\tt.Fatalf(\"failed to close example live db: %v\", err)\n\t}\n}\n\nfunc createTestArchive(t *testing.T, sourceDir string) {\n\tt.Helper()\n\tsource, err := mpt.OpenArchiveTrie(sourceDir, mpt.S5ArchiveConfig, 1024)\n\tif err != nil {\n\t\tt.Fatalf(\"failed to create archive: %v\", err)\n\t}\n\tfillTestBlocksIntoArchive(t, source)\n\tif err = source.Close(); err != nil {\n\t\tt.Fatalf(\"failed to close test DB: %v\", err)\n\t}\n}\n\n// checkCanOpenLiveDB makes sure LiveDB is not corrupted and can be opened (and closed)\nfunc checkCanOpenLiveDB(t *testing.T, sourceDir string) {\n\tdb, err := mpt.OpenGoFileState(sourceDir, mpt.S5LiveConfig, mpt.DefaultMptStateCapacity)\n\tif err != nil {\n\t\tt.Fatalf(\"failed to open db: %v\", err)\n\t}\n\terr = db.Close()\n\tif err != nil {\n\t\tt.Fatalf(\"failed to close db: %v\", err)\n\t}\n}\n\n// checkCanOpenLiveDB makes sure Archive is not corrupted and can be opened (and closed)\nfunc checkCanOpenArchive(t *testing.T, sourceDir string) {\n\tarchive, err := mpt.OpenArchiveTrie(sourceDir, mpt.S5ArchiveConfig, mpt.DefaultMptStateCapacity)\n\tif err != nil {\n\t\tt.Fatalf(\"failed to open archive: %v\", err)\n\t}\n\terr = archive.Close()\n\tif err != nil {\n\t\tt.Fatalf(\"failed to close archive: %v\", err)\n\t}\n}\n\ntype mockWriter struct {\n\tnumOfWrites     int\n\tsignalInterrupt bool\n}\n\nfunc (m *mockWriter) Write([]byte) (n int, err error) {\n\tm.numOfWrites++\n\t// inform the test that first write has happened\n\tif m.numOfWrites > 0 && m.signalInterrupt {\n\t\tm.signalInterrupt = false\n\t\terr = syscall.Kill(syscall.Getpid(), syscall.SIGINT)\n\t\tif err != nil {\n\t\t\treturn 0, errors.New(\"failed to create a SIGINT signal\")\n\t\t}\n\t\ttime.Sleep(10 * time.Millisecond)\n\t}\n\n\treturn 0, nil\n}\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/go/database/mpt/io/interrupt_test.go b/go/database/mpt/io/interrupt_test.go
+--- a/go/database/mpt/io/interrupt_test.go	(revision 36cd962cdb97750a7de24b2a0915c62071ed3d8b)
++++ b/go/database/mpt/io/interrupt_test.go	(date 1717914643606)
+@@ -11,9 +11,9 @@
+ package io
+ 
+ import (
++	"context"
+ 	"errors"
+ 	"io"
+-	"strings"
+ 	"syscall"
+ 	"testing"
+ 	"time"
+@@ -24,7 +24,7 @@
+ func TestExport_CanBeInterrupted(t *testing.T) {
+ 	type testFuncs struct {
+ 		// export is the tested export func
+-		export func(string, io.Writer) error
++		export func(context.Context, string, io.Writer) error
+ 		// createDB is an init of the database
+ 		createDB func(t *testing.T, sourceDir string)
+ 		// check that the interrupted did not corrupt the db by re-opening it
+@@ -50,27 +50,19 @@
+ 			sourceDir := t.TempDir()
+ 			tf.createDB(t, sourceDir)
+ 
+-			writer := &mockWriter{signalInterrupt: false}
++			countWriter := &mockWriter{signalInterrupt: false}
+ 			// first find number of writes
+-			if err := tf.export(sourceDir, writer); err != nil {
++			if err := tf.export(context.Background(), sourceDir, countWriter); err != nil {
+ 				t.Fatalf("unexpected error: %v", err)
+ 			}
+ 
+ 			// save max count and reset number of writes
+-			maxCount := writer.numOfWrites
+-			// reset number of writes, so we can compare
+-			// that export was indeed interrupted
+-			writer.numOfWrites = 0
++			maxCount := countWriter.numOfWrites
++
++			writer := &mockWriter{}
+ 			writer.signalInterrupt = true
+-
+-			err := tf.export(sourceDir, writer)
+-			if err == nil {
+-				t.Fatal("export was interrupted, error must not be nil")
+-			}
+-
+-			got := err.Error()
+-			want := ErrCanceled.Error()
+-			if !strings.Contains(got, want) {
++			err := tf.export(context.Background(), sourceDir, writer)
++			if got, want := err, ErrCanceled; !errors.Is(got, want) {
+ 				t.Errorf("unexpected error: got: %v, want: %v", got, want)
+ 			}
+ 
+@@ -142,7 +134,7 @@
+ 		if err != nil {
+ 			return 0, errors.New("failed to create a SIGINT signal")
+ 		}
+-		time.Sleep(10 * time.Millisecond)
++		time.Sleep(100 * time.Millisecond)
+ 	}
+ 
+ 	return 0, nil
+Index: go/database/mpt/io/archive_test.go
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>// Copyright (c) 2024 Fantom Foundation\n//\n// Use of this software is governed by the Business Source License included\n// in the LICENSE file and at fantom.foundation/bsl11.\n//\n// Change Date: 2028-4-16\n//\n// On the date above, in accordance with the Business Source License, use of\n// this software will be governed by the GNU Lesser General Public License v3.\n\npackage io\n\nimport (\n\t\"bytes\"\n\t\"path\"\n\t\"testing\"\n\n\t\"github.com/Fantom-foundation/Carmen/go/common\"\n\t\"github.com/Fantom-foundation/Carmen/go/database/mpt\"\n)\n\nfunc TestIO_Archive_ExportAndImport(t *testing.T) {\n\n\t// Create a small Archive to be exported.\n\tsourceDir := t.TempDir()\n\tsource, err := mpt.OpenArchiveTrie(sourceDir, mpt.S5ArchiveConfig, 1024)\n\tif err != nil {\n\t\tt.Fatalf(\"failed to create archive: %v\", err)\n\t}\n\tblockHeight := fillTestBlocksIntoArchive(t, source)\n\n\thashes := []common.Hash{}\n\tfor i := 0; i <= blockHeight; i++ {\n\t\thash, err := source.GetHash(uint64(i))\n\t\tif err != nil {\n\t\t\tt.Fatalf(\"failed to fetch hash for block %d: %v\", i, err)\n\t\t}\n\t\thashes = append(hashes, hash)\n\t}\n\n\tif err := source.Close(); err != nil {\n\t\tt.Fatalf(\"failed to close source archive: %v\", err)\n\t}\n\n\t// Export the archive into a buffer.\n\tbuffer := new(bytes.Buffer)\n\tif err := ExportArchive(sourceDir, buffer); err != nil {\n\t\tt.Fatalf(\"failed to export Archive: %v\", err)\n\t}\n\tgenesis := buffer.Bytes()\n\n\t// Import the archive into a new directory.\n\ttargetDir := t.TempDir()\n\tbuffer = bytes.NewBuffer(genesis)\n\tif err := ImportArchive(targetDir, buffer); err != nil {\n\t\tt.Fatalf(\"failed to import Archive: %v\", err)\n\t}\n\n\tif err := mpt.VerifyArchiveTrie(targetDir, mpt.S5ArchiveConfig, nil); err != nil {\n\t\tt.Fatalf(\"verification of imported Archive failed: %v\", err)\n\t}\n\n\ttarget, err := mpt.OpenArchiveTrie(targetDir, mpt.S5ArchiveConfig, 1024)\n\tif err != nil {\n\t\tt.Fatalf(\"failed to open recovered Archive: %v\", err)\n\t}\n\tdefer target.Close()\n\n\theight, _, err := target.GetBlockHeight()\n\tif err != nil {\n\t\tt.Fatalf(\"failed to get block height from recovered archive: %v\", err)\n\t}\n\tif height != uint64(blockHeight) {\n\t\tt.Fatalf(\"unexpected block height in recovered Archive, wanted %d, got %d\", 3, height)\n\t}\n\n\tfor i, want := range hashes {\n\t\tgot, err := target.GetHash(uint64(i))\n\t\tif err != nil {\n\t\t\tt.Fatalf(\"failed to fetch hash for block %d: %v\", i, err)\n\t\t}\n\t\tif want != got {\n\t\t\tt.Errorf(\"wrong hash for block %d, wanted %v, got %v\", i, want, got)\n\t\t}\n\t}\n}\n\nfunc TestIO_ArchiveAndLive_ExportAndImport(t *testing.T) {\n\n\t// Create a small Archive to be exported.\n\tsourceDir := t.TempDir()\n\tsource, err := mpt.OpenArchiveTrie(sourceDir, mpt.S5ArchiveConfig, 1024)\n\tif err != nil {\n\t\tt.Fatalf(\"failed to create archive: %v\", err)\n\t}\n\tblockHeight := fillTestBlocksIntoArchive(t, source)\n\n\thashes := []common.Hash{}\n\tfor i := 0; i <= blockHeight; i++ {\n\t\thash, err := source.GetHash(uint64(i))\n\t\tif err != nil {\n\t\t\tt.Fatalf(\"failed to fetch hash for block %d: %v\", i, err)\n\t\t}\n\t\thashes = append(hashes, hash)\n\t}\n\n\tif err := source.Close(); err != nil {\n\t\tt.Fatalf(\"failed to close source archive: %v\", err)\n\t}\n\n\t// Export the archive into a buffer.\n\tbuffer := new(bytes.Buffer)\n\tif err := ExportArchive(sourceDir, buffer); err != nil {\n\t\tt.Fatalf(\"failed to export Archive: %v\", err)\n\t}\n\tgenesis := buffer.Bytes()\n\n\t// Import the archive into a new directory.\n\ttargetDir := t.TempDir()\n\tbuffer = bytes.NewBuffer(genesis)\n\tif err := ImportLiveAndArchive(targetDir, buffer); err != nil {\n\t\tt.Fatalf(\"failed to import Archive: %v\", err)\n\t}\n\n\tif err := mpt.VerifyFileLiveTrie(path.Join(targetDir, \"live\"), mpt.S5LiveConfig, nil); err != nil {\n\t\tt.Fatalf(\"verification of imported LiveDB failed: %v\", err)\n\t}\n\n\tlive, err := mpt.OpenFileLiveTrie(path.Join(targetDir, \"live\"), mpt.S5LiveConfig, 1024)\n\tif err != nil {\n\t\tt.Fatalf(\"cannot open live trie: %v\", err)\n\t}\n\tdefer live.Close()\n\theadHash, _, err := live.UpdateHashes()\n\tif err != nil {\n\t\tt.Fatalf(\"cannot get live trie hash: %v\", err)\n\t}\n\n\tif got, want := headHash, hashes[len(hashes)-1]; got != want {\n\t\tt.Errorf(\"head root hashes do not match: got: %v != want: %v\", got, want)\n\t}\n\n\tif err := mpt.VerifyArchiveTrie(path.Join(targetDir, \"archive\"), mpt.S5ArchiveConfig, nil); err != nil {\n\t\tt.Fatalf(\"verification of imported Archive failed: %v\", err)\n\t}\n\n\tarchive, err := mpt.OpenArchiveTrie(path.Join(targetDir, \"archive\"), mpt.S5ArchiveConfig, 1024)\n\tif err != nil {\n\t\tt.Fatalf(\"failed to open recovered Archive: %v\", err)\n\t}\n\tdefer archive.Close()\n\n\theight, _, err := archive.GetBlockHeight()\n\tif err != nil {\n\t\tt.Fatalf(\"failed to get block height from recovered archive: %v\", err)\n\t}\n\tif height != uint64(blockHeight) {\n\t\tt.Fatalf(\"unexpected block height in recovered Archive, wanted %d, got %d\", 3, height)\n\t}\n\n\tfor i, want := range hashes {\n\t\tgot, err := archive.GetHash(uint64(i))\n\t\tif err != nil {\n\t\t\tt.Fatalf(\"failed to fetch hash for block %d: %v\", i, err)\n\t\t}\n\t\tif want != got {\n\t\t\tt.Errorf(\"wrong hash for block %d, wanted %v, got %v\", i, want, got)\n\t\t}\n\t}\n}\n\nfunc fillTestBlocksIntoArchive(t *testing.T, archive *mpt.ArchiveTrie) (blockHeight int) {\n\n\taddr1 := common.Address{1}\n\taddr2 := common.Address{2}\n\tbalance1 := common.Balance{1}\n\tbalance2 := common.Balance{2}\n\tnonce1 := common.Nonce{1}\n\tnonce2 := common.Nonce{2}\n\tcode1 := []byte{1, 2, 3}\n\n\terr := archive.Add(0, common.Update{\n\t\tCreatedAccounts: []common.Address{addr1},\n\t\tBalances:        []common.BalanceUpdate{{Account: addr1, Balance: balance1}},\n\t\tNonces:          []common.NonceUpdate{{Account: addr1, Nonce: nonce1}},\n\t\tCodes:           []common.CodeUpdate{{Account: addr1, Code: code1}},\n\t\tSlots: []common.SlotUpdate{\n\t\t\t{Account: addr1, Key: common.Key{1}, Value: common.Value{1}},\n\t\t\t{Account: addr1, Key: common.Key{2}, Value: common.Value{2}},\n\t\t},\n\t}, nil)\n\tif err != nil {\n\t\tt.Fatalf(\"failed to create block in archive: %v\", err)\n\t}\n\n\terr = archive.Add(3, common.Update{\n\t\tCreatedAccounts: []common.Address{addr2},\n\t\tBalances:        []common.BalanceUpdate{{Account: addr2, Balance: balance2}},\n\t\tNonces:          []common.NonceUpdate{{Account: addr2, Nonce: nonce2}},\n\t\tSlots: []common.SlotUpdate{\n\t\t\t{Account: addr1, Key: common.Key{1}, Value: common.Value{0}},\n\t\t\t{Account: addr1, Key: common.Key{2}, Value: common.Value{3}},\n\t\t\t{Account: addr2, Key: common.Key{1}, Value: common.Value{2}},\n\t\t},\n\t}, nil)\n\tif err != nil {\n\t\tt.Fatalf(\"failed to create block in archive: %v\", err)\n\t}\n\n\terr = archive.Add(7, common.Update{\n\t\tDeletedAccounts: []common.Address{addr1},\n\t}, nil)\n\tif err != nil {\n\t\tt.Fatalf(\"failed to create block in archive: %v\", err)\n\t}\n\n\treturn 7\n}\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/go/database/mpt/io/archive_test.go b/go/database/mpt/io/archive_test.go
+--- a/go/database/mpt/io/archive_test.go	(revision 36cd962cdb97750a7de24b2a0915c62071ed3d8b)
++++ b/go/database/mpt/io/archive_test.go	(date 1717913900383)
+@@ -12,6 +12,7 @@
+ 
+ import (
+ 	"bytes"
++	"context"
+ 	"path"
+ 	"testing"
+ 
+@@ -44,7 +45,7 @@
+ 
+ 	// Export the archive into a buffer.
+ 	buffer := new(bytes.Buffer)
+-	if err := ExportArchive(sourceDir, buffer); err != nil {
++	if err := ExportArchive(context.Background(), sourceDir, buffer); err != nil {
+ 		t.Fatalf("failed to export Archive: %v", err)
+ 	}
+ 	genesis := buffer.Bytes()
+@@ -110,7 +111,7 @@
+ 
+ 	// Export the archive into a buffer.
+ 	buffer := new(bytes.Buffer)
+-	if err := ExportArchive(sourceDir, buffer); err != nil {
++	if err := ExportArchive(context.Background(), sourceDir, buffer); err != nil {
+ 		t.Fatalf("failed to export Archive: %v", err)
+ 	}
+ 	genesis := buffer.Bytes()
+Index: go/database/mpt/io/interrupt.go
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>// Copyright (c) 2024 Fantom Foundation\n//\n// Use of this software is governed by the Business Source License included\n// in the LICENSE file and at fantom.foundation/bsl11.\n//\n// Change Date: 2028-4-16\n//\n// On the date above, in accordance with the Business Source License, use of\n// this software will be governed by the GNU Lesser General Public License v3.\n\npackage io\n\nimport (\n\t\"context\"\n\t\"log\"\n\t\"os\"\n\t\"os/signal\"\n\t\"syscall\"\n\n\t\"github.com/Fantom-foundation/Carmen/go/common\"\n)\n\nconst ErrCanceled = common.ConstError(\"export was interrupted\")\n\n// isContextDone returns true if the given context CancelFunc has been called.\n// Otherwise, returns false.\nfunc isContextDone(ctx context.Context) bool {\n\tselect {\n\tcase <-ctx.Done():\n\t\treturn true\n\tdefault:\n\t\treturn false\n\t}\n}\n\n// catchInterrupt catches SIGTERM and SIGINT signals and\n// prevents export from corrupting database by canceling its context.\nfunc catchInterrupt() context.Context {\n\tctx, cancel := context.WithCancel(context.Background())\n\tc := make(chan os.Signal, 1)\n\tsignal.Notify(c, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)\n\tgo func() {\n\t\tdefer signal.Stop(c)\n\t\tselect {\n\t\tcase <-c:\n\t\t\tlog.Println(\"closing, please wait until proper shutdown to prevent database corruption\")\n\t\t\tcancel()\n\t\tcase <-ctx.Done():\n\t\t}\n\t}()\n\n\treturn ctx\n}\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/go/database/mpt/io/interrupt.go b/go/database/mpt/io/interrupt.go
+--- a/go/database/mpt/io/interrupt.go	(revision 36cd962cdb97750a7de24b2a0915c62071ed3d8b)
++++ b/go/database/mpt/io/interrupt.go	(date 1717914189812)
+@@ -12,10 +12,6 @@
+ 
+ import (
+ 	"context"
+-	"log"
+-	"os"
+-	"os/signal"
+-	"syscall"
+ 
+ 	"github.com/Fantom-foundation/Carmen/go/common"
+ )
+@@ -32,22 +28,3 @@
+ 		return false
+ 	}
+ }
+-
+-// catchInterrupt catches SIGTERM and SIGINT signals and
+-// prevents export from corrupting database by canceling its context.
+-func catchInterrupt() context.Context {
+-	ctx, cancel := context.WithCancel(context.Background())
+-	c := make(chan os.Signal, 1)
+-	signal.Notify(c, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
+-	go func() {
+-		defer signal.Stop(c)
+-		select {
+-		case <-c:
+-			log.Println("closing, please wait until proper shutdown to prevent database corruption")
+-			cancel()
+-		case <-ctx.Done():
+-		}
+-	}()
+-
+-	return ctx
+-}
+Index: go/database/mpt/tool/export.go
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>// Copyright (c) 2024 Fantom Foundation\n//\n// Use of this software is governed by the Business Source License included\n// in the LICENSE file and at fantom.foundation/bsl11.\n//\n// Change Date: 2028-4-16\n//\n// On the date above, in accordance with the Business Source License, use of\n// this software will be governed by the GNU Lesser General Public License v3.\n\npackage main\n\nimport (\n\t\"bufio\"\n\t\"compress/gzip\"\n\t\"errors\"\n\t\"fmt\"\n\t\"log\"\n\t\"os\"\n\t\"strings\"\n\t\"time\"\n\n\t\"github.com/Fantom-foundation/Carmen/go/database/mpt\"\n\t\"github.com/Fantom-foundation/Carmen/go/database/mpt/io\"\n\t\"github.com/urfave/cli/v2\"\n)\n\nvar ExportCmd = cli.Command{\n\tAction:    doExport,\n\tName:      \"export\",\n\tUsage:     \"exports a LiveDB or Archive instance into a file\",\n\tArgsUsage: \"<db director> <target-file>\",\n\tFlags: []cli.Flag{\n\t\t&cpuProfileFlag,\n\t},\n}\n\nfunc doExport(context *cli.Context) error {\n\tif context.Args().Len() != 2 {\n\t\treturn fmt.Errorf(\"missing state directory and/or target file parameter\")\n\t}\n\tdir := context.Args().Get(0)\n\ttrg := context.Args().Get(1)\n\n\t// Start profiling ...\n\tcpuProfileFileName := context.String(cpuProfileFlag.Name)\n\tif strings.TrimSpace(cpuProfileFileName) != \"\" {\n\t\tif err := startCpuProfiler(cpuProfileFileName); err != nil {\n\t\t\treturn err\n\t\t}\n\t\tdefer stopCpuProfiler()\n\t}\n\n\t// check the type of target database\n\tmptInfo, err := io.CheckMptDirectoryAndGetInfo(dir)\n\tif err != nil {\n\t\treturn err\n\t}\n\n\texport := io.Export\n\tif mptInfo.Mode == mpt.Immutable {\n\t\texport = io.ExportArchive\n\t}\n\n\tstart := time.Now()\n\tlogFromStart(start, \"export started\")\n\n\tfile, err := os.Create(trg)\n\tif err != nil {\n\t\treturn err\n\t}\n\tbufferedWriter := bufio.NewWriter(file)\n\tout := gzip.NewWriter(bufferedWriter)\n\n\tif err = errors.Join(\n\t\texport(dir, out),\n\t\tout.Close(),\n\t\tbufferedWriter.Flush(),\n\t\tfile.Close(),\n\t); err != nil {\n\t\treturn err\n\t}\n\tlogFromStart(start, \"export done\")\n\treturn nil\n}\n\nfunc logFromStart(start time.Time, msg string) {\n\tnow := time.Now()\n\tt := uint64(now.Sub(start).Seconds())\n\tlog.Printf(\"[t=%4d:%02d] - %s.\\n\", t/60, t%60, msg)\n}\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/go/database/mpt/tool/export.go b/go/database/mpt/tool/export.go
+--- a/go/database/mpt/tool/export.go	(revision 36cd962cdb97750a7de24b2a0915c62071ed3d8b)
++++ b/go/database/mpt/tool/export.go	(date 1717914337042)
+@@ -13,11 +13,14 @@
+ import (
+ 	"bufio"
+ 	"compress/gzip"
++	"context"
+ 	"errors"
+ 	"fmt"
+ 	"log"
+ 	"os"
++	"os/signal"
+ 	"strings"
++	"syscall"
+ 	"time"
+ 
+ 	"github.com/Fantom-foundation/Carmen/go/database/mpt"
+@@ -72,8 +75,10 @@
+ 	bufferedWriter := bufio.NewWriter(file)
+ 	out := gzip.NewWriter(bufferedWriter)
+ 
++	ctx := catchInterrupt(context.Context)
++
+ 	if err = errors.Join(
+-		export(dir, out),
++		export(ctx, dir, out),
+ 		out.Close(),
+ 		bufferedWriter.Flush(),
+ 		file.Close(),
+@@ -89,3 +94,22 @@
+ 	t := uint64(now.Sub(start).Seconds())
+ 	log.Printf("[t=%4d:%02d] - %s.\n", t/60, t%60, msg)
+ }
++
++// catchInterrupt catches SIGTERM and SIGINT signals and
++// prevents export from corrupting database by canceling its context.
++func catchInterrupt(parent context.Context) context.Context {
++	ctx, cancel := context.WithCancel(parent)
++	c := make(chan os.Signal, 1)
++	signal.Notify(c, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
++	go func() {
++		defer signal.Stop(c)
++		select {
++		case <-c:
++			log.Println("closing, please wait until proper shutdown to prevent database corruption")
++			cancel()
++		case <-ctx.Done():
++		}
++	}()
++
++	return ctx
++}
+Index: go/database/mpt/io/archive.go
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>// Copyright (c) 2024 Fantom Foundation\n//\n// Use of this software is governed by the Business Source License included\n// in the LICENSE file and at fantom.foundation/bsl11.\n//\n// Change Date: 2028-4-16\n//\n// On the date above, in accordance with the Business Source License, use of\n// this software will be governed by the GNU Lesser General Public License v3.\n\npackage io\n\nimport (\n\t\"bytes\"\n\t\"encoding/binary\"\n\t\"errors\"\n\t\"fmt\"\n\t\"io\"\n\t\"os\"\n\t\"path\"\n\t\"sort\"\n\n\t\"github.com/Fantom-foundation/Carmen/go/state\"\n\n\t\"github.com/Fantom-foundation/Carmen/go/backend/archive\"\n\t\"github.com/Fantom-foundation/Carmen/go/common\"\n\t\"github.com/Fantom-foundation/Carmen/go/database/mpt\"\n\t\"golang.org/x/exp/maps\"\n)\n\n// This file provides a pair of import and export functions capable of\n// serializing the content of an Archive into a single, payload-only data\n// blob with build-in consistency check which can be utilized for safely\n// transferring state information between systems.\n//\n// Format:\n//\n//  file   ::= <magic-number> <version> [<code>]* [<update>]*\n//  code   ::= 'C' <2-byte big-endian code length> <code>\n//  update ::= 'U' <4-byte big-endian block> [<hash>]+ [<change>]+\n//  hash   ::= 'H' <1-byte hash type identifier> <state-hash>\n//  change ::= 'A' <address>           // starts a new account scope\n//           | 'R'                     // reset the current account\n//           | 'B' <balance>           // update the current account's balance\n//           | 'N' <nonce>             // update the current account's nonce\n//           | 'c' <code-hash>         // update the current account's code\n//           | 'V' <key> <value>       // update the value of a storage slot\n//           | 'D' <key>               // delete a storage slot\n//\n// All properties belong to the account preceding it. The produced data stream\n// may be further compressed (e.g. using Gzip) to reduce its size.\n\nvar archiveMagicNumber []byte = []byte(\"Fantom-Archive-State\")\n\nconst archiveFormatVersion = byte(1)\n\nfunc ExportArchive(directory string, out io.Writer) error {\n\tinfo, err := CheckMptDirectoryAndGetInfo(directory)\n\tif err != nil {\n\t\treturn fmt.Errorf(\"error in input directory: %v\", err)\n\t}\n\n\tif info.Config.Name != mpt.S5ArchiveConfig.Name {\n\t\treturn fmt.Errorf(\"can only support export of S5 Archive instances, found %v in directory\", info.Config.Name)\n\t}\n\n\tarchive, err := mpt.OpenArchiveTrie(directory, info.Config, mpt.DefaultMptStateCapacity)\n\tif err != nil {\n\t\treturn err\n\t}\n\n\tctx := catchInterrupt()\n\n\t// Start with the magic number.\n\tif _, err := out.Write(archiveMagicNumber); err != nil {\n\t\treturn err\n\t}\n\n\t// Add a version number.\n\tif _, err := out.Write([]byte{archiveFormatVersion}); err != nil {\n\t\treturn err\n\t}\n\n\t// Write out codes.\n\tcodes, err := archive.GetCodes()\n\tif err != nil {\n\t\treturn fmt.Errorf(\"failed to retrieve codes: %v\", err)\n\t}\n\tif err := writeCodes(codes, out); err != nil {\n\t\treturn err\n\t}\n\n\t// Write out updates.\n\tmaxBlock, empty, err := archive.GetBlockHeight()\n\tif err != nil {\n\t\treturn fmt.Errorf(\"failed to get max block height: %w\", err)\n\t}\n\tif empty {\n\t\treturn archive.Close()\n\t}\n\n\t// Encode diff of each individual block.\n\tfor block := uint64(0); block <= maxBlock; block++ {\n\t\tif isContextDone(ctx) {\n\t\t\treturn errors.Join(ErrCanceled, archive.Close())\n\t\t}\n\t\tdiff, err := archive.GetDiffForBlock(block)\n\t\tif err != nil {\n\t\t\treturn fmt.Errorf(\"failed to get diff for block %d: %w\", block, err)\n\t\t}\n\t\tif len(diff) == 0 {\n\t\t\tcontinue\n\t\t}\n\n\t\t// Encode block number.\n\t\tb := []byte{byte('U'), 0, 0, 0, 0}\n\t\tbinary.BigEndian.PutUint32(b[1:], uint32(block))\n\t\tif _, err := out.Write(b); err != nil {\n\t\t\treturn err\n\t\t}\n\n\t\t// Encode the block hash.\n\t\thash, err := archive.GetHash(block)\n\t\tif err != nil {\n\t\t\treturn err\n\t\t}\n\t\tif _, err := out.Write([]byte{byte('H'), byte(EthereumHash)}); err != nil {\n\t\t\treturn err\n\t\t}\n\t\tif _, err := out.Write(hash[:]); err != nil {\n\t\t\treturn err\n\t\t}\n\n\t\t// Encode changes of this block.\n\t\taddresses := maps.Keys(diff)\n\t\tsort.Slice(addresses, func(i, j int) bool { return bytes.Compare(addresses[i][:], addresses[j][:]) < 0 })\n\t\tfor _, address := range addresses {\n\t\t\tif _, err := out.Write([]byte{'A'}); err != nil {\n\t\t\t\treturn err\n\t\t\t}\n\t\t\tif _, err := out.Write(address[:]); err != nil {\n\t\t\t\treturn err\n\t\t\t}\n\t\t\taccountDiff := diff[address]\n\t\t\tif accountDiff.Reset {\n\t\t\t\tif _, err := out.Write([]byte{'R'}); err != nil {\n\t\t\t\t\treturn err\n\t\t\t\t}\n\t\t\t}\n\t\t\tif accountDiff.Balance != nil {\n\t\t\t\tif _, err := out.Write([]byte{'B'}); err != nil {\n\t\t\t\t\treturn err\n\t\t\t\t}\n\t\t\t\tif _, err := out.Write((*accountDiff.Balance)[:]); err != nil {\n\t\t\t\t\treturn err\n\t\t\t\t}\n\t\t\t}\n\t\t\tif accountDiff.Nonce != nil {\n\t\t\t\tif _, err := out.Write([]byte{'N'}); err != nil {\n\t\t\t\t\treturn err\n\t\t\t\t}\n\t\t\t\tif _, err := out.Write((*accountDiff.Nonce)[:]); err != nil {\n\t\t\t\t\treturn err\n\t\t\t\t}\n\t\t\t}\n\t\t\tif accountDiff.Code != nil {\n\t\t\t\tif _, err := out.Write([]byte{'c'}); err != nil {\n\t\t\t\t\treturn err\n\t\t\t\t}\n\t\t\t\tif _, err := out.Write((*accountDiff.Code)[:]); err != nil {\n\t\t\t\t\treturn err\n\t\t\t\t}\n\t\t\t}\n\t\t\tkeys := maps.Keys(accountDiff.Storage)\n\t\t\tsort.Slice(keys, func(i, j int) bool { return bytes.Compare(keys[i][:], keys[j][:]) < 0 })\n\t\t\tfor _, key := range keys {\n\t\t\t\tvalue := accountDiff.Storage[key]\n\t\t\t\tif (value == common.Value{}) {\n\t\t\t\t\tif _, err := out.Write([]byte{'D'}); err != nil {\n\t\t\t\t\t\treturn err\n\t\t\t\t\t}\n\t\t\t\t\tif _, err := out.Write(key[:]); err != nil {\n\t\t\t\t\t\treturn err\n\t\t\t\t\t}\n\t\t\t\t} else {\n\t\t\t\t\tif _, err := out.Write([]byte{'V'}); err != nil {\n\t\t\t\t\t\treturn err\n\t\t\t\t\t}\n\t\t\t\t\tif _, err := out.Write(key[:]); err != nil {\n\t\t\t\t\t\treturn err\n\t\t\t\t\t}\n\t\t\t\t\tif _, err := out.Write(value[:]); err != nil {\n\t\t\t\t\t\treturn err\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n\n\treturn archive.Close()\n}\n\nfunc ImportArchive(directory string, in io.Reader) error {\n\t// check that the destination directory is an empty directory\n\tif err := checkEmptyDirectory(directory); err != nil {\n\t\treturn err\n\t}\n\tliveDbDir := path.Join(directory, \"tmp-live-db\")\n\treturn errors.Join(\n\t\timportArchive(liveDbDir, directory, in),\n\t\tos.RemoveAll(liveDbDir), // live db is deleted at the end\n\t)\n}\n\nfunc ImportLiveAndArchive(directory string, in io.Reader) error {\n\t// check that the destination directory is an empty directory\n\tif err := checkEmptyDirectory(directory); err != nil {\n\t\treturn err\n\t}\n\tliveDbDir := path.Join(directory, \"live\")\n\tarchiveDbDir := path.Join(directory, \"archive\")\n\treturn importArchive(liveDbDir, archiveDbDir, in)\n}\n\nfunc importArchive(liveDbDir, archiveDbDir string, in io.Reader) (err error) {\n\t// Start by checking the magic number.\n\tbuffer := make([]byte, len(archiveMagicNumber))\n\tif _, err := io.ReadFull(in, buffer); err != nil {\n\t\treturn err\n\t} else if !bytes.Equal(buffer, archiveMagicNumber) {\n\t\treturn fmt.Errorf(\"invalid format, wrong magic number\")\n\t}\n\n\t// Check the version number.\n\tif _, err := io.ReadFull(in, buffer[0:1]); err != nil {\n\t\treturn err\n\t} else if buffer[0] != archiveFormatVersion {\n\t\treturn fmt.Errorf(\"invalid format, unsupported version\")\n\t}\n\n\t// Create a live-DB updated in parallel for faster hash computation.\n\tlive, err := mpt.OpenGoFileState(liveDbDir, mpt.S5LiveConfig, mpt.DefaultMptStateCapacity)\n\tif err != nil {\n\t\treturn fmt.Errorf(\"failed to create auxiliary live DB: %w\", err)\n\t}\n\tdefer func() {\n\t\terr = errors.Join(\n\t\t\terr,\n\t\t\tlive.Close(),\n\t\t)\n\t}()\n\n\t// Create an empty archive.\n\tarchive, err := mpt.OpenArchiveTrie(archiveDbDir, mpt.S5ArchiveConfig, mpt.DefaultMptStateCapacity)\n\tif err != nil {\n\t\treturn fmt.Errorf(\"failed to create empty state: %w\", err)\n\t}\n\tdefer func() {\n\t\terr = errors.Join(err, archive.Close())\n\t}()\n\n\t// Restore the archive from the input file.\n\tcontext := newImportContext()\n\tfor {\n\t\t// Read prefix determining the next input marker.\n\t\tif _, err := io.ReadFull(in, buffer[0:1]); err != nil {\n\t\t\tif err == io.EOF {\n\t\t\t\treturn context.finishCurrentBlock(archive, live)\n\t\t\t}\n\t\t\treturn err\n\t\t}\n\t\tswitch buffer[0] {\n\t\tcase 'A':\n\t\t\taddress := common.Address{}\n\t\t\tif _, err := io.ReadFull(in, address[:]); err != nil {\n\t\t\t\treturn err\n\t\t\t}\n\t\t\tcontext.setAccount(address)\n\t\tcase 'C':\n\t\t\tcode, err := readCode(in)\n\t\t\tif err != nil {\n\t\t\t\treturn err\n\t\t\t}\n\t\t\tcontext.addCode(code)\n\t\tcase 'U':\n\t\t\tif err := context.finishCurrentBlock(archive, live); err != nil {\n\t\t\t\treturn err\n\t\t\t}\n\t\t\tif _, err := io.ReadFull(in, buffer[0:4]); err != nil {\n\t\t\t\treturn err\n\t\t\t}\n\t\t\tcontext.setBlock(uint64(binary.BigEndian.Uint32(buffer)))\n\n\t\tcase 'H':\n\t\t\tif _, err := io.ReadFull(in, buffer[0:1]); err != nil {\n\t\t\t\treturn err\n\t\t\t}\n\t\t\thashType := HashType(buffer[0])\n\t\t\thash := common.Hash{}\n\t\t\tif _, err := io.ReadFull(in, hash[:]); err != nil {\n\t\t\t\treturn err\n\t\t\t}\n\t\t\tif hashType == EthereumHash {\n\t\t\t\tcontext.setBlockHash(hash)\n\t\t\t}\n\n\t\tcase 'R':\n\t\t\tcontext.deleteAccount()\n\n\t\tcase 'B':\n\t\t\tbalance := common.Balance{}\n\t\t\tif _, err := io.ReadFull(in, balance[:]); err != nil {\n\t\t\t\treturn err\n\t\t\t}\n\t\t\tcontext.setBalance(balance)\n\n\t\tcase 'N':\n\t\t\tnonce := common.Nonce{}\n\t\t\tif _, err := io.ReadFull(in, nonce[:]); err != nil {\n\t\t\t\treturn err\n\t\t\t}\n\t\t\tcontext.setNonce(nonce)\n\n\t\tcase 'c':\n\t\t\thash := common.Hash{}\n\t\t\tif _, err := io.ReadFull(in, hash[:]); err != nil {\n\t\t\t\treturn err\n\t\t\t}\n\t\t\tif err := context.setCode(hash); err != nil {\n\t\t\t\treturn err\n\t\t\t}\n\n\t\tcase 'V':\n\t\t\tkey := common.Key{}\n\t\t\tvalue := common.Value{}\n\t\t\tif _, err := io.ReadFull(in, key[:]); err != nil {\n\t\t\t\treturn err\n\t\t\t}\n\t\t\tif _, err := io.ReadFull(in, value[:]); err != nil {\n\t\t\t\treturn err\n\t\t\t}\n\t\t\tcontext.setSlot(key, value)\n\n\t\tcase 'D':\n\t\t\tkey := common.Key{}\n\t\t\tif _, err := io.ReadFull(in, key[:]); err != nil {\n\t\t\t\treturn err\n\t\t\t}\n\t\t\tcontext.deleteSlot(key)\n\n\t\tdefault:\n\t\t\treturn fmt.Errorf(\"format error encountered, unexpected token type: %c\", buffer[0])\n\t\t}\n\t}\n}\n\ntype importContext struct {\n\tcodes                 map[common.Hash][]byte\n\tcurrentAccount        common.Address\n\tcurrentBlock          uint64\n\tcurrentBlockHash      common.Hash\n\tcurrentBlockHashFound bool\n\tcurrentUpdate         common.Update\n}\n\nfunc newImportContext() *importContext {\n\treturn &importContext{\n\t\tcodes: map[common.Hash][]byte{\n\t\t\tcommon.Keccak256([]byte{}): {},\n\t\t},\n\t}\n}\n\nfunc (c *importContext) addCode(code []byte) {\n\tc.codes[common.Keccak256(code)] = code\n}\n\nfunc (c *importContext) setBlock(block uint64) {\n\tc.currentBlock = block\n}\n\nfunc (c *importContext) setBlockHash(hash common.Hash) {\n\tc.currentBlockHash = hash\n\tc.currentBlockHashFound = true\n}\n\nfunc (c *importContext) setAccount(address common.Address) {\n\tc.currentAccount = address\n}\n\nfunc (c *importContext) deleteAccount() {\n\tc.currentUpdate.AppendDeleteAccount(c.currentAccount)\n}\n\nfunc (c *importContext) setBalance(balance common.Balance) {\n\tc.currentUpdate.AppendBalanceUpdate(c.currentAccount, balance)\n}\n\nfunc (c *importContext) setNonce(nonce common.Nonce) {\n\tc.currentUpdate.AppendNonceUpdate(c.currentAccount, nonce)\n}\n\nfunc (c *importContext) setCode(hash common.Hash) error {\n\tcode, found := c.codes[hash]\n\tif !found {\n\t\treturn fmt.Errorf(\"missing code for hash %v in input file\", hash)\n\t}\n\tc.currentUpdate.AppendCodeUpdate(c.currentAccount, code)\n\treturn nil\n}\n\nfunc (c *importContext) setSlot(key common.Key, value common.Value) {\n\tc.currentUpdate.AppendSlotUpdate(c.currentAccount, key, value)\n}\n\nfunc (c *importContext) deleteSlot(key common.Key) {\n\tc.currentUpdate.AppendSlotUpdate(c.currentAccount, key, common.Value{})\n}\n\nfunc (c *importContext) finishCurrentBlock(archive archive.Archive, live state.LiveDB) error {\n\tif c.currentUpdate.IsEmpty() {\n\t\treturn nil\n\t}\n\tif !c.currentBlockHashFound {\n\t\treturn fmt.Errorf(\"input format error: no hash for block %d\", c.currentBlock)\n\t}\n\thints, err := live.Apply(c.currentBlock, c.currentUpdate)\n\tif err != nil {\n\t\treturn err\n\t}\n\tif err := archive.Add(c.currentBlock, c.currentUpdate, hints); err != nil {\n\t\treturn err\n\t}\n\thints.Release()\n\thash, err := archive.GetHash(c.currentBlock)\n\tif err != nil {\n\t\treturn err\n\t}\n\tif hash != c.currentBlockHash {\n\t\treturn fmt.Errorf(\"invalid hash for block %d: from input %x, restored hash %x\", c.currentBlock, c.currentBlockHash, hash)\n\t}\n\n\tc.currentUpdate = common.Update{}\n\tc.currentBlockHashFound = false\n\treturn nil\n}\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/go/database/mpt/io/archive.go b/go/database/mpt/io/archive.go
+--- a/go/database/mpt/io/archive.go	(revision 36cd962cdb97750a7de24b2a0915c62071ed3d8b)
++++ b/go/database/mpt/io/archive.go	(date 1717914300958)
+@@ -12,6 +12,7 @@
+ 
+ import (
+ 	"bytes"
++	"context"
+ 	"encoding/binary"
+ 	"errors"
+ 	"fmt"
+@@ -54,7 +55,7 @@
+ 
+ const archiveFormatVersion = byte(1)
+ 
+-func ExportArchive(directory string, out io.Writer) error {
++func ExportArchive(ctx context.Context, directory string, out io.Writer) error {
+ 	info, err := CheckMptDirectoryAndGetInfo(directory)
+ 	if err != nil {
+ 		return fmt.Errorf("error in input directory: %v", err)
+@@ -69,8 +70,6 @@
+ 		return err
+ 	}
+ 
+-	ctx := catchInterrupt()
+-
+ 	// Start with the magic number.
+ 	if _, err := out.Write(archiveMagicNumber); err != nil {
+ 		return err
+Index: go/database/mpt/io/live_test.go
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>// Copyright (c) 2024 Fantom Foundation\n//\n// Use of this software is governed by the Business Source License included\n// in the LICENSE file and at fantom.foundation/bsl11.\n//\n// Change Date: 2028-4-16\n//\n// On the date above, in accordance with the Business Source License, use of\n// this software will be governed by the GNU Lesser General Public License v3.\n\npackage io\n\nimport (\n\t\"bytes\"\n\t\"errors\"\n\t\"os\"\n\t\"strings\"\n\t\"testing\"\n\n\t\"github.com/Fantom-foundation/Carmen/go/common\"\n\t\"github.com/Fantom-foundation/Carmen/go/database/mpt\"\n)\n\nfunc TestIO_ExportAndImportAsLiveDb(t *testing.T) {\n\tgenesis, hash := exportExampleState(t)\n\n\tbuffer := bytes.NewBuffer(genesis)\n\ttargetDir := t.TempDir()\n\tif err := ImportLiveDb(targetDir, buffer); err != nil {\n\t\tt.Fatalf(\"failed to import DB: %v\", err)\n\t}\n\n\tif err := mpt.VerifyFileLiveTrie(targetDir, mpt.S5LiveConfig, nil); err != nil {\n\t\tt.Fatalf(\"verification of imported DB failed: %v\", err)\n\t}\n\n\tdb, err := mpt.OpenGoFileState(targetDir, mpt.S5LiveConfig, 1024)\n\tif err != nil {\n\t\tt.Fatalf(\"failed to open recovered DB: %v\", err)\n\t}\n\tdefer db.Close()\n\n\tif exists, err := db.Exists(common.Address{1}); err != nil || !exists {\n\t\tt.Fatalf(\"restored DB does not contain account 1\")\n\t}\n\tif exists, err := db.Exists(common.Address{2}); err != nil || !exists {\n\t\tt.Fatalf(\"restored DB does not contain account 2\")\n\t}\n\n\tif got, err := db.GetHash(); err != nil || got != hash {\n\t\tt.Fatalf(\"restored DB failed to reproduce same hash\\nwanted %x\\n   got %x\\n   err %v\", hash, got, err)\n\t}\n}\n\nfunc TestIO_ExportAndImportAsArchive(t *testing.T) {\n\tgenesis, hash := exportExampleState(t)\n\n\tbuffer := bytes.NewBuffer(genesis)\n\ttargetDir := t.TempDir()\n\tgenesisBlock := uint64(12)\n\tif err := InitializeArchive(targetDir, buffer, genesisBlock); err != nil {\n\t\tt.Fatalf(\"failed to import DB: %v\", err)\n\t}\n\n\tif err := mpt.VerifyArchiveTrie(targetDir, mpt.S5ArchiveConfig, nil); err != nil {\n\t\tt.Fatalf(\"verification of imported DB failed: %v\", err)\n\t}\n\n\tdb, err := mpt.OpenArchiveTrie(targetDir, mpt.S5ArchiveConfig, 1024)\n\tif err != nil {\n\t\tt.Fatalf(\"failed to open recovered DB: %v\", err)\n\t}\n\tdefer db.Close()\n\n\theight, empty, err := db.GetBlockHeight()\n\tif err != nil || empty || height != genesisBlock {\n\t\tt.Fatalf(\"invalid block height, wanted %d, got %d, empty %t, err %v\", genesisBlock, height, empty, err)\n\t}\n\n\tif exists, err := db.Exists(genesisBlock, common.Address{1}); err != nil || !exists {\n\t\tt.Fatalf(\"restored DB does not contain account 1\")\n\t}\n\tif exists, err := db.Exists(genesisBlock, common.Address{2}); err != nil || !exists {\n\t\tt.Fatalf(\"restored DB does not contain account 2\")\n\t}\n\n\tif got, err := db.GetHash(genesisBlock); err != nil || got != hash {\n\t\tt.Fatalf(\"restored DB failed to reproduce same hash\\nwanted %x\\n   got %x\\n   err %v\", hash, got, err)\n\t}\n\n\tfor i := uint64(0); i < genesisBlock; i++ {\n\t\tif got, err := db.GetHash(i); err != nil || got != mpt.EmptyNodeEthereumHash {\n\t\t\tt.Fatalf(\"invalid hash for pre-genesis block %d\\nwanted %x\\n   got %x\\n   err %v\", i, mpt.EmptyNodeEthereumHash, got, err)\n\t\t}\n\t}\n}\n\nfunc TestIO_ExportedDataIsDeterministic(t *testing.T) {\n\treference, _ := exportExampleState(t)\n\tfor i := 0; i < 10; i++ {\n\t\tdata, _ := exportExampleState(t)\n\t\tif !bytes.Equal(data, reference) {\n\t\t\tt.Fatalf(\"exported data is not deterministic\")\n\t\t}\n\t}\n}\n\nfunc TestIO_ExportedDataDoesNotContainExtraCodes(t *testing.T) {\n\treference, referenceHash := exportExampleState(t)\n\n\t// Modify the state by adding and removing code from an account.\n\t// This temporary code should not be included in the resulting exported data.\n\tmodified, modifiedHash := exportExampleStateWithModification(t, func(s *mpt.MptState) {\n\t\tcodesBefore, err := s.GetCodes()\n\t\tif err != nil {\n\t\t\tt.Fatalf(\"failed to fetch codes: %v\", err)\n\t\t}\n\t\taddr1 := common.Address{1}\n\t\tcode, err := s.GetCode(addr1)\n\t\tif err != nil {\n\t\t\tt.Fatalf(\"failed to fetch code: %v\", err)\n\t\t}\n\t\tmodified := append(code, []byte(\"extra_code\")...)\n\t\ts.SetCode(addr1, modified)\n\t\ts.SetCode(addr1, code)\n\t\tcodesAfter, err := s.GetCodes()\n\t\tif err != nil {\n\t\t\tt.Fatalf(\"failed to fetch codes: %v\", err)\n\t\t}\n\t\tif before, after := len(codesBefore), len(codesAfter); before+1 != after {\n\t\t\tt.Fatalf(\"modification did not had expected code-altering effect: %d -> %d\", before, after)\n\t\t}\n\t})\n\n\t// Check that the test indeed did not modify the state content.\n\tif referenceHash != modifiedHash {\n\t\tt.Fatalf(\"modified state has different hash than reference state: got: %x, want %x\", modifiedHash, referenceHash)\n\t}\n\n\t// The extra code that was only temporary in the state should no be included\n\t// in the exported data.\n\tif !bytes.Equal(reference, modified) {\n\t\tt.Fatalf(\"exported data contains extra codes\")\n\t}\n}\n\nfunc exportExampleState(t *testing.T) ([]byte, common.Hash) {\n\tt.Helper()\n\treturn exportExampleStateWithModification(t, nil)\n}\n\nfunc createExampleLiveDB(t *testing.T, sourceDir string) *mpt.MptState {\n\t// Create a small LiveDB.\n\tdb, err := mpt.OpenGoFileState(sourceDir, mpt.S5LiveConfig, 1024)\n\tif err != nil {\n\t\tt.Fatalf(\"failed to create test DB: %v\", err)\n\t}\n\n\taddr1 := common.Address{1}\n\taddr2 := common.Address{2}\n\taddr3 := common.Address{3}\n\taddr4 := common.Address{4}\n\tkey1 := common.Key{1}\n\tkey2 := common.Key{2}\n\tvalue1 := common.Value{1}\n\tvalue2 := common.Value{2}\n\terr = errors.Join(\n\t\t// First account, with code.\n\t\tdb.SetNonce(addr1, common.ToNonce(1)),\n\t\tdb.SetBalance(addr1, common.Balance{12}),\n\t\tdb.SetStorage(addr1, key1, value1),\n\t\tdb.SetCode(addr1, []byte(\"some_code\")),\n\t\t// Second account, without code.\n\t\tdb.SetNonce(addr2, common.ToNonce(2)),\n\t\tdb.SetBalance(addr2, common.Balance{14}),\n\t\tdb.SetStorage(addr2, key1, value1),\n\t\tdb.SetStorage(addr2, key2, value2),\n\t\t// Third account, with different code as first account.\n\t\tdb.SetNonce(addr3, common.ToNonce(3)),\n\t\tdb.SetBalance(addr3, common.Balance{16}),\n\t\tdb.SetCode(addr3, []byte(\"some_other_code\")),\n\t\t// Fourth account, with same code as first account.\n\t\tdb.SetNonce(addr4, common.ToNonce(4)),\n\t\tdb.SetBalance(addr4, common.Balance{18}),\n\t\tdb.SetCode(addr4, []byte(\"some_code\")),\n\t)\n\n\tif err != nil {\n\t\tt.Fatalf(\"failed to seed test DB: %v\", err)\n\n\t}\n\treturn db\n}\n\nfunc exportExampleStateWithModification(t *testing.T, modify func(s *mpt.MptState)) ([]byte, common.Hash) {\n\tt.Helper()\n\tsourceDir := t.TempDir()\n\n\tdb := createExampleLiveDB(t, sourceDir)\n\n\tif modify != nil {\n\t\tmodify(db)\n\t}\n\n\thash, err := db.GetHash()\n\tif err != nil {\n\t\tt.Fatalf(\"failed to fetch hash from DB: %v\", err)\n\t}\n\tif err := db.Close(); err != nil {\n\t\tt.Fatalf(\"failed to close DB: %v\", err)\n\t}\n\n\t// Export database to buffer.\n\tvar buffer bytes.Buffer\n\tif err := Export(sourceDir, &buffer); err != nil {\n\t\tt.Fatalf(\"failed to export DB: %v\", err)\n\t}\n\n\treturn buffer.Bytes(), hash\n}\n\nfunc TestImport_ImportIntoNonEmptyTargetDirectoryFails(t *testing.T) {\n\tdir := t.TempDir()\n\tif err := os.WriteFile(dir+string(os.PathSeparator)+\"test.txt\", nil, 0700); err != nil {\n\t\tt.Fatalf(\"failed to create file: %v\", err)\n\t}\n\n\tif err := ImportLiveDb(dir, nil); err == nil || !strings.Contains(err.Error(), \"is not empty\") {\n\t\tt.Errorf(\"unexpected error: %v\", err)\n\t}\n}\n\nfunc TestInitializeArchive_ImportIntoNonEmptyTargetDirectoryFails(t *testing.T) {\n\tdir := t.TempDir()\n\tif err := os.WriteFile(dir+string(os.PathSeparator)+\"test.txt\", nil, 0700); err != nil {\n\t\tt.Fatalf(\"failed to create file: %v\", err)\n\t}\n\n\tif err := InitializeArchive(dir, nil, 0); err == nil || !strings.Contains(err.Error(), \"is not empty\") {\n\t\tt.Errorf(\"unexpected error: %v\", err)\n\t}\n}\n\nfunc TestCheckEmptyDirectory_PassesIfEmpty(t *testing.T) {\n\tdir := t.TempDir()\n\tif err := checkEmptyDirectory(dir); err != nil {\n\t\tt.Errorf(\"unexpected error: %v\", err)\n\t}\n}\n\nfunc TestCheckEmptyDirectory_FailsIfDirectoryDoesNotExist(t *testing.T) {\n\tdir := t.TempDir()\n\tif err := checkEmptyDirectory(dir + string(os.PathSeparator) + \"sub\"); err == nil {\n\t\tt.Errorf(\"test expected to produce an error\")\n\t}\n}\n\nfunc TestCheckEmptyDirectory_FailsIfDirectoryIsAFile(t *testing.T) {\n\tdir := t.TempDir()\n\tfile := dir + string(os.PathSeparator) + \"test.txt\"\n\tif err := os.WriteFile(file, nil, 0700); err != nil {\n\t\tt.Fatalf(\"failed to create file: %v\", err)\n\t}\n\tif err := checkEmptyDirectory(file); err == nil {\n\t\tt.Errorf(\"test expected to produce an error\")\n\t}\n}\n\nfunc TestCheckEmptyDirectory_FailsIfDirectoryContainsAFile(t *testing.T) {\n\tdir := t.TempDir()\n\tif err := os.WriteFile(dir+string(os.PathSeparator)+\"test.txt\", nil, 0700); err != nil {\n\t\tt.Fatalf(\"failed to create file: %v\", err)\n\t}\n\tif err := checkEmptyDirectory(dir); err == nil || !strings.Contains(err.Error(), \"is not empty\") {\n\t\tt.Errorf(\"unexpected error: %v\", err)\n\t}\n}\n\nfunc TestCheckEmptyDirectory_FailsIfDirectoryContainsADirectory(t *testing.T) {\n\tdir := t.TempDir()\n\tif err := os.Mkdir(dir+string(os.PathSeparator)+\"sub\", 0700); err != nil {\n\t\tt.Fatalf(\"failed to create sub-directory: %v\", err)\n\t}\n\tif err := checkEmptyDirectory(dir); err == nil || !strings.Contains(err.Error(), \"is not empty\") {\n\t\tt.Errorf(\"unexpected error: %v\", err)\n\t}\n}\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/go/database/mpt/io/live_test.go b/go/database/mpt/io/live_test.go
+--- a/go/database/mpt/io/live_test.go	(revision 36cd962cdb97750a7de24b2a0915c62071ed3d8b)
++++ b/go/database/mpt/io/live_test.go	(date 1717913900319)
+@@ -12,6 +12,7 @@
+ 
+ import (
+ 	"bytes"
++	"context"
+ 	"errors"
+ 	"os"
+ 	"strings"
+@@ -212,7 +213,7 @@
+ 
+ 	// Export database to buffer.
+ 	var buffer bytes.Buffer
+-	if err := Export(sourceDir, &buffer); err != nil {
++	if err := Export(context.Background(), sourceDir, &buffer); err != nil {
+ 		t.Fatalf("failed to export DB: %v", err)
+ 	}
+ 
+Index: go/database/mpt/io/live.go
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>// Copyright (c) 2024 Fantom Foundation\n//\n// Use of this software is governed by the Business Source License included\n// in the LICENSE file and at fantom.foundation/bsl11.\n//\n// Change Date: 2028-4-16\n//\n// On the date above, in accordance with the Business Source License, use of\n// this software will be governed by the GNU Lesser General Public License v3.\n\npackage io\n\nimport (\n\t\"bytes\"\n\t\"context\"\n\t\"errors\"\n\t\"fmt\"\n\t\"io\"\n\t\"os\"\n\t\"strings\"\n\n\t\"github.com/Fantom-foundation/Carmen/go/common\"\n\t\"github.com/Fantom-foundation/Carmen/go/database/mpt\"\n)\n\n// This file provides a pair of import and export functions capable of\n// serializing the content of a LiveDB into a single, payload-only data\n// blob with build-in consistency check which can be utilized for safely\n// transferring state information between systems.\n//\n// Format:\n//\n//  file  ::= <magic-number> <version> [<hash>]+ [<code>]* [<entry>]*\n//  hash  ::= 'H' <1-byte hash type identifier> <state-hash>\n//  code  ::= 'C' <2-byte big-endian code length> <code>\n//  entry ::= 'A' <address> <balance> <nonce> <code-hash>\n//          | 'S' <key> <value>\n//\n// All values belong to the account preceding it. The produced data stream\n// may be further compressed (e.g. using Gzip) to reduce its size.\n\nvar stateMagicNumber []byte = []byte(\"Fantom-World-State\")\n\nconst formatVersion = byte(1)\n\ntype HashType byte\n\n// So far there is only one hash type supported, the Ethereum hash. But for\n// future situations we might want to support different hash types, like the\n// S4 hash definition. Thus this enum is introduced as a placeholder.\nconst (\n\tEthereumHash = HashType(0)\n)\n\n// Export opens a LiveDB instance retained in the given directory and writes\n// its content to the given output writer. The result contains all the\n// information required by the Import function below to reconstruct the full\n// state of the LiveDB.\nfunc Export(directory string, out io.Writer) error {\n\tinfo, err := CheckMptDirectoryAndGetInfo(directory)\n\tif err != nil {\n\t\treturn fmt.Errorf(\"error in input directory: %v\", err)\n\t}\n\n\tif info.Config.Name != mpt.S5LiveConfig.Name {\n\t\treturn fmt.Errorf(\"can only support export of LiveDB instances, found %v in directory\", info.Mode)\n\t}\n\n\tdb, err := mpt.OpenGoFileState(directory, info.Config, mpt.DefaultMptStateCapacity)\n\tif err != nil {\n\t\treturn fmt.Errorf(\"failed to open LiveDB: %v\", err)\n\t}\n\tdefer db.Close()\n\n\tctx := catchInterrupt()\n\n\t// Start with the magic number.\n\tif _, err := out.Write(stateMagicNumber); err != nil {\n\t\treturn err\n\t}\n\n\t// Add a version number.\n\tif _, err := out.Write([]byte{formatVersion}); err != nil {\n\t\treturn err\n\t}\n\n\t// Continue with the full state hash.\n\thash, err := db.GetHash()\n\tif err != nil {\n\t\treturn err\n\t}\n\tif _, err := out.Write([]byte{byte('H'), byte(EthereumHash)}); err != nil {\n\t\treturn err\n\t}\n\tif _, err := out.Write(hash[:]); err != nil {\n\t\treturn err\n\t}\n\n\t// Write out codes.\n\tcodes, err := getReferencedCodes(db)\n\tif err != nil {\n\t\treturn fmt.Errorf(\"failed to retrieve codes: %v\", err)\n\t}\n\tif err := writeCodes(codes, out); err != nil {\n\t\treturn err\n\t}\n\n\t// Write out all accounts and values.\n\tvisitor := exportVisitor{out: out, ctx: ctx}\n\tif err := db.Visit(&visitor); err != nil || visitor.err != nil {\n\t\treturn fmt.Errorf(\"failed exporting content: %v\", errors.Join(err, visitor.err))\n\t}\n\n\treturn nil\n}\n\n// ImportLiveDb creates a fresh StateDB in the given directory and fills it\n// with the content read from the given reader.\nfunc ImportLiveDb(directory string, in io.Reader) error {\n\t_, _, err := runImport(directory, in, mpt.S5LiveConfig)\n\treturn err\n}\n\n// InitializeArchive creates a fresh Archive in the given directory containing\n// the state read from the input stream at the given block. All states before\n// the given block are empty.\nfunc InitializeArchive(directory string, in io.Reader, block uint64) (err error) {\n\t// The import creates a live-DB state that initializes the Archive.\n\troot, hash, err := runImport(directory, in, mpt.S5ArchiveConfig)\n\tif err != nil {\n\t\treturn err\n\t}\n\n\t// Seal the data by marking the content as immutable.\n\tforestFile := directory + string(os.PathSeparator) + \"forest.json\"\n\tmetaData, err := os.ReadFile(forestFile)\n\tif err != nil {\n\t\treturn err\n\t}\n\tmetaData = []byte(strings.Replace(string(metaData), \"\\\"Mutable\\\":true\", \"\\\"Mutable\\\":false\", 1))\n\tif err := os.WriteFile(forestFile, metaData, 0600); err != nil {\n\t\treturn err\n\t}\n\n\t// Create a root file listing block roots.\n\troots := make([]mpt.Root, block+1)\n\tfor i := uint64(0); i < block; i++ {\n\t\troots[i] = mpt.Root{\n\t\t\tNodeRef: mpt.NewNodeReference(mpt.EmptyId()),\n\t\t\tHash:    mpt.EmptyNodeEthereumHash,\n\t\t}\n\t}\n\troots[block] = mpt.Root{\n\t\tNodeRef: mpt.NewNodeReference(root),\n\t\tHash:    hash,\n\t}\n\tif err := mpt.StoreRoots(directory+string(os.PathSeparator)+\"roots.dat\", roots); err != nil {\n\t\treturn err\n\t}\n\treturn nil\n}\n\nfunc runImport(directory string, in io.Reader, config mpt.MptConfig) (root mpt.NodeId, hash common.Hash, err error) {\n\t// check that the destination directory is an empty directory\n\tif err := checkEmptyDirectory(directory); err != nil {\n\t\treturn root, hash, err\n\t}\n\n\t// Start by checking the magic number.\n\tbuffer := make([]byte, len(stateMagicNumber))\n\tif _, err := io.ReadFull(in, buffer); err != nil {\n\t\treturn root, hash, err\n\t} else if !bytes.Equal(buffer, stateMagicNumber) {\n\t\treturn root, hash, fmt.Errorf(\"invalid format, wrong magic number\")\n\t}\n\n\t// Check the version number.\n\tif _, err := io.ReadFull(in, buffer[0:1]); err != nil {\n\t\treturn root, hash, err\n\t} else if buffer[0] != formatVersion {\n\t\treturn root, hash, fmt.Errorf(\"invalid format, unsupported version\")\n\t}\n\n\t// Create a state.\n\tdb, err := mpt.OpenGoFileState(directory, config, mpt.DefaultMptStateCapacity)\n\tif err != nil {\n\t\treturn root, hash, fmt.Errorf(\"failed to create empty state: %v\", err)\n\t}\n\tdefer func() {\n\t\terr = errors.Join(err, db.Close())\n\t}()\n\n\tvar (\n\t\taddr    common.Address\n\t\tkey     common.Key\n\t\tvalue   common.Value\n\t\tbalance common.Balance\n\t\tnonce   common.Nonce\n\t)\n\n\t// Read the rest and build the state.\n\tbuffer = buffer[0:1]\n\tcodes := map[common.Hash][]byte{\n\t\tcommon.Keccak256([]byte{}): {},\n\t}\n\n\tcounter := 0\n\n\thashFound := false\n\tvar stateHash common.Hash\n\tfor {\n\t\t// Update hashes periodically to avoid running out of memory\n\t\t// for nodes with dirty hashes.\n\t\tcounter++\n\t\tif (counter % 100_000) == 0 {\n\t\t\tif _, err := db.GetHash(); err != nil {\n\t\t\t\treturn root, hash, fmt.Errorf(\"failed to update hashes: %v\", err)\n\t\t\t}\n\t\t}\n\n\t\tif _, err := io.ReadFull(in, buffer); err != nil {\n\t\t\tif err == io.EOF {\n\t\t\t\tif !hashFound {\n\t\t\t\t\treturn root, hash, fmt.Errorf(\"file does not contain a compatible state hash\")\n\t\t\t\t}\n\t\t\t\t// Check the final hash.\n\t\t\t\thash, err := db.GetHash()\n\t\t\t\tif err != nil {\n\t\t\t\t\treturn root, hash, err\n\t\t\t\t}\n\t\t\t\tif stateHash != hash {\n\t\t\t\t\treturn root, hash, fmt.Errorf(\"failed to reproduce valid state, hashes do not match\")\n\t\t\t\t}\n\t\t\t\treturn db.GetRootId(), hash, nil\n\t\t\t}\n\t\t\treturn root, hash, err\n\t\t}\n\t\tswitch buffer[0] {\n\t\tcase 'A':\n\t\t\tif _, err := io.ReadFull(in, addr[:]); err != nil {\n\t\t\t\treturn root, hash, err\n\t\t\t}\n\t\t\tif _, err := io.ReadFull(in, balance[:]); err != nil {\n\t\t\t\treturn root, hash, err\n\t\t\t}\n\t\t\tif err := db.SetBalance(addr, balance); err != nil {\n\t\t\t\treturn root, hash, err\n\t\t\t}\n\t\t\tif _, err := io.ReadFull(in, nonce[:]); err != nil {\n\t\t\t\treturn root, hash, err\n\t\t\t}\n\t\t\tif err := db.SetNonce(addr, nonce); err != nil {\n\t\t\t\treturn root, hash, err\n\t\t\t}\n\t\t\tif _, err := io.ReadFull(in, hash[:]); err != nil {\n\t\t\t\treturn root, hash, err\n\t\t\t}\n\t\t\tif code, found := codes[hash]; found {\n\t\t\t\tif err := db.SetCode(addr, code); err != nil {\n\t\t\t\t\treturn root, hash, err\n\t\t\t\t}\n\t\t\t} else {\n\t\t\t\treturn root, hash, fmt.Errorf(\"missing code with hash %x for account %x\", hash[:], addr[:])\n\t\t\t}\n\n\t\tcase 'S':\n\t\t\tif _, err := io.ReadFull(in, key[:]); err != nil {\n\t\t\t\treturn root, hash, err\n\t\t\t}\n\t\t\tif _, err := io.ReadFull(in, value[:]); err != nil {\n\t\t\t\treturn root, hash, err\n\t\t\t}\n\t\t\tif err := db.SetStorage(addr, key, value); err != nil {\n\t\t\t\treturn root, hash, err\n\t\t\t}\n\n\t\tcase 'C':\n\t\t\tcode, err := readCode(in)\n\t\t\tif err != nil {\n\t\t\t\treturn root, hash, err\n\t\t\t}\n\t\t\tcodes[common.Keccak256(code)] = code\n\t\tcase 'H':\n\t\t\tif _, err := io.ReadFull(in, buffer); err != nil {\n\t\t\t\treturn root, hash, err\n\t\t\t}\n\t\t\thashType := HashType(buffer[0])\n\t\t\thash := common.Hash{}\n\t\t\tif _, err := io.ReadFull(in, hash[:]); err != nil {\n\t\t\t\treturn root, hash, err\n\t\t\t}\n\t\t\tif hashType == EthereumHash {\n\t\t\t\tstateHash = hash\n\t\t\t\thashFound = true\n\t\t\t}\n\t\tdefault:\n\t\t\treturn root, hash, fmt.Errorf(\"format error encountered, unexpected token type: %c\", buffer[0])\n\t\t}\n\t}\n}\n\n// getReferencedCodes returns a map of codes referenced by accounts in the\n// given database. The map is indexed by the code hash.\nfunc getReferencedCodes(db *mpt.MptState) (map[common.Hash][]byte, error) {\n\tcodes := make(map[common.Hash][]byte)\n\terr := db.Visit(mpt.MakeVisitor(func(node mpt.Node, info mpt.NodeInfo) mpt.VisitResponse {\n\t\tif n, ok := node.(*mpt.AccountNode); ok {\n\t\t\tcodeHash := n.Info().CodeHash\n\t\t\tcode := db.GetCodeForHash(codeHash)\n\t\t\tif len(code) > 0 {\n\t\t\t\tcodes[codeHash] = code\n\t\t\t}\n\t\t\treturn mpt.VisitResponsePrune // < no need to visit the storage trie\n\t\t}\n\t\treturn mpt.VisitResponseContinue\n\t}))\n\treturn codes, err\n}\n\n// exportVisitor is an internal utility used by the Export function to write\n// account and value node information to a given output writer.\ntype exportVisitor struct {\n\tout io.Writer\n\terr error\n\tctx context.Context\n}\n\nfunc (e *exportVisitor) Visit(node mpt.Node, _ mpt.NodeInfo) mpt.VisitResponse {\n\t// outside call to interrupt\n\tif isContextDone(e.ctx) {\n\t\te.err = ErrCanceled\n\t\treturn mpt.VisitResponseAbort\n\t}\n\tswitch n := node.(type) {\n\tcase *mpt.AccountNode:\n\t\taddr := n.Address()\n\t\tinfo := n.Info()\n\t\tif _, err := e.out.Write([]byte{byte('A')}); err != nil {\n\t\t\te.err = err\n\t\t\treturn mpt.VisitResponseAbort\n\t\t}\n\t\tif _, err := e.out.Write(addr[:]); err != nil {\n\t\t\te.err = err\n\t\t\treturn mpt.VisitResponseAbort\n\t\t}\n\t\tif _, err := e.out.Write(info.Balance[:]); err != nil {\n\t\t\te.err = err\n\t\t\treturn mpt.VisitResponseAbort\n\t\t}\n\t\tif _, err := e.out.Write(info.Nonce[:]); err != nil {\n\t\t\te.err = err\n\t\t\treturn mpt.VisitResponseAbort\n\t\t}\n\t\tif _, err := e.out.Write(info.CodeHash[:]); err != nil {\n\t\t\te.err = err\n\t\t\treturn mpt.VisitResponseAbort\n\t\t}\n\tcase *mpt.ValueNode:\n\t\tkey := n.Key()\n\t\tvalue := n.Value()\n\t\tif _, err := e.out.Write([]byte{byte('S')}); err != nil {\n\t\t\te.err = err\n\t\t\treturn mpt.VisitResponseAbort\n\t\t}\n\t\tif _, err := e.out.Write(key[:]); err != nil {\n\t\t\te.err = err\n\t\t\treturn mpt.VisitResponseAbort\n\t\t}\n\t\tif _, err := e.out.Write(value[:]); err != nil {\n\t\t\te.err = err\n\t\t\treturn mpt.VisitResponseAbort\n\t\t}\n\t}\n\treturn mpt.VisitResponseContinue\n}\n\nfunc checkEmptyDirectory(directory string) error {\n\tfile, err := os.Open(directory)\n\tif err != nil {\n\t\treturn fmt.Errorf(\"failed to open directory %s: %w\", directory, err)\n\t}\n\tdefer file.Close()\n\tstate, err := file.Stat()\n\tif err != nil {\n\t\treturn fmt.Errorf(\"failed to open file information for %s: %w\", directory, err)\n\t}\n\tif !state.IsDir() {\n\t\treturn fmt.Errorf(\"the path `%s` does not point to a directory\", directory)\n\t}\n\t_, err = file.Readdirnames(1)\n\tif err == nil {\n\t\treturn fmt.Errorf(\"directory `%s` is not empty\", directory)\n\t}\n\tif !errors.Is(err, io.EOF) {\n\t\treturn fmt.Errorf(\"failed to list content of directory `%s`: %w\", directory, err)\n\t}\n\treturn nil\n}\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/go/database/mpt/io/live.go b/go/database/mpt/io/live.go
+--- a/go/database/mpt/io/live.go	(revision 36cd962cdb97750a7de24b2a0915c62071ed3d8b)
++++ b/go/database/mpt/io/live.go	(date 1717914303184)
+@@ -56,7 +56,7 @@
+ // its content to the given output writer. The result contains all the
+ // information required by the Import function below to reconstruct the full
+ // state of the LiveDB.
+-func Export(directory string, out io.Writer) error {
++func Export(ctx context.Context, directory string, out io.Writer) error {
+ 	info, err := CheckMptDirectoryAndGetInfo(directory)
+ 	if err != nil {
+ 		return fmt.Errorf("error in input directory: %v", err)
+@@ -72,8 +72,6 @@
+ 	}
+ 	defer db.Close()
+ 
+-	ctx := catchInterrupt()
+-
+ 	// Start with the magic number.
+ 	if _, err := out.Write(stateMagicNumber); err != nil {
+ 		return err

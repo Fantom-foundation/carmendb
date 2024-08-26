@@ -1,0 +1,510 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="ALL" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="968b3df2-bfb7-4ee1-8897-3573b16936dd" name="Changes" comment="Test commit">
+      <change beforePath="$PROJECT_DIR$/go/database/mpt/verification_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/go/database/mpt/verification_test.go" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Go File" />
+      </list>
+    </option>
+  </component>
+  <component name="GOROOT" url="file:///opt/homebrew/opt/go/libexec" />
+  <component name="Git.Settings">
+    <favorite-branches>
+      <branch-storage>
+        <map>
+          <entry type="LOCAL">
+            <value>
+              <list>
+                <branch-info repo="$PROJECT_DIR$" source="petr/genesis-export-graceful-exit" />
+                <branch-info repo="$PROJECT_DIR$" source="petr/has-empty-storage" />
+                <branch-info repo="$PROJECT_DIR$" source="petr/mpt-empty-storage" />
+                <branch-info repo="$PROJECT_DIR$" source="petr/verification-graceful-exit" />
+              </list>
+            </value>
+          </entry>
+        </map>
+      </branch-storage>
+    </favorite-branches>
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="petr/verification-graceful-exit" />
+      </map>
+    </option>
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+    <option name="RESET_MODE" value="HARD" />
+  </component>
+  <component name="GitRewordedCommitMessages">
+    <option name="commitMessagesMapping">
+      <RewordedCommitMessageMapping>
+        <option name="originalMessage" value="Add python script" />
+        <option name="rewordedMessage" value="Add python script." />
+      </RewordedCommitMessageMapping>
+    </option>
+    <option name="currentCommit" value="1" />
+    <option name="onto" value="38d8704afbef83a28666f65604967981dfe600e8" />
+  </component>
+  <component name="HighlightingSettingsPerFile">
+    <setting file="file:///opt/homebrew/Cellar/go/1.21.2/pkg/mod/go.uber.org/mock@v0.2.0/gomock/call.go" root0="SKIP_INSPECTION" />
+    <setting file="file:///opt/homebrew/Cellar/go/1.21.2/pkg/mod/go.uber.org/mock@v0.2.0/gomock/controller.go" root0="SKIP_INSPECTION" />
+    <setting file="file:///opt/homebrew/opt/go/libexec/src/testing/testing.go" root0="SKIP_INSPECTION" />
+  </component>
+  <component name="MarkdownSettingsMigration">
+    <option name="stateVersion" value="1" />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 8
+}</component>
+  <component name="ProjectId" id="2dGJQbSLbGWCSd6KyrQuGNvW6Km" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "DefaultGoTemplateProperty": "Go File",
+    "Go Build.Import.executor": "Run",
+    "Go Build.go build github.com/Fantom-foundation/Carmen/go/database/mpt/tool.executor": "Run",
+    "Go Build.verify.executor": "Run",
+    "Go Test.BenchmarkLiveTrie_WithHighNumberOfDirtyNodes_Flush in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.ExampleDatabase_GetHistoricContext in github.com/Fantom-foundation/Carmen/go/carmen.executor": "Run",
+    "Go Test.ExampleDatabase_GetMemoryFootprint in github.com/Fantom-foundation/Carmen/go/carmen.executor": "Run",
+    "Go Test.ExampleDatabase_QueryHeadState in github.com/Fantom-foundation/Carmen/go/carmen.executor": "Run",
+    "Go Test.ExampleDatabase_QueryHistoricState in github.com/Fantom-foundation/Carmen/go/carmen.executor": "Run",
+    "Go Test.TestAccountNode_HasEmptyStorage in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestArchiveState_Export in github.com/Fantom-foundation/Carmen/go/state/gostate.executor": "Run",
+    "Go Test.TestArchiveState_Export_CanBeCancelled in github.com/Fantom-foundation/Carmen/go/state/gostate.executor": "Run",
+    "Go Test.TestArchiveState_Export_ErrorsAreCaught in github.com/Fantom-foundation/Carmen/go/state/gostate.executor": "Run",
+    "Go Test.TestArchiveTrie_CanProcessPrecomputedHashes in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestArchiveTrie_CreateLiveDbGenesis in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestArchiveTrie_HasEmptyStorage in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestArchiveTrie_VerificationOfArchiveWithCorruptedFileFails in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestArchiveTrie_VerificationOfArchiveWithMissingFileFails in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestArchiveTrie_VerificationOfEmptyDirectoryPasses in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestArchiveTrie_VerificationOfFreshArchivePasses in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestArchiveTrie_VerifyArchive_Failure_Meta in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestArchiveTrie_VisitTrie in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestArchiveTrie_VisitTrie_CorrectDataIsVisited in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestArchiveTrie_VisitTrie_InvalidBlock in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestArchive_CreateLiveDBGenesis in github.com/Fantom-foundation/Carmen/go/backend/archive.executor": "Run",
+    "Go Test.TestBenchmark_KeepStateRetainsState in github.com/Fantom-foundation/Carmen/go/database/mpt/tool.executor": "Run",
+    "Go Test.TestBenchmark_RunExampleBenchmark in github.com/Fantom-foundation/Carmen/go/database/mpt/tool.executor": "Run",
+    "Go Test.TestBenchmark_SupportsDifferentModes in github.com/Fantom-foundation/Carmen/go/database/mpt/tool.executor": "Run",
+    "Go Test.TestBulkLoad_BigBulkloadsArePossible in github.com/Fantom-foundation/Carmen/go/carmen.executor": "Run",
+    "Go Test.TestBulkLoad_BigBulkloadsArePossible in github.com/Fantom-foundation/Carmen/go/state.executor": "Run",
+    "Go Test.TestCatchInterrupt in github.com/Fantom-foundation/Carmen/go/common/interrupt.executor": "Run",
+    "Go Test.TestDatabase_ArchiveCanBeAccessedAsync in github.com/Fantom-foundation/Carmen/go/carmen.executor": "Debug",
+    "Go Test.TestDatabase_CanRunLargeBulkLoads in github.com/Fantom-foundation/Carmen/go/carmen.executor": "Debug",
+    "Go Test.TestDatabase_CreateLiveDBGenesis in github.com/Fantom-foundation/Carmen/go/carmen.executor": "Run",
+    "Go Test.TestDatabase_Export in github.com/Fantom-foundation/Carmen/go/carmen.executor": "Run",
+    "Go Test.TestDatabase_GetMemoryFootprint in github.com/Fantom-foundation/Carmen/go/carmen.executor": "Run",
+    "Go Test.TestDatabase_HasEmptyStorage in github.com/Fantom-foundation/Carmen/go/carmen.executor": "Run",
+    "Go Test.TestEmptyMap_Panic in github.com/Fantom-foundation/Carmen/go/state.executor": "Run",
+    "Go Test.TestEmptyNode_HasEmptyStorage in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestExportArchive_CanBeInterrupted in github.com/Fantom-foundation/Carmen/go/database/mpt/io.executor": "Run",
+    "Go Test.TestExportImport in github.com/Fantom-foundation/Carmen/go/database/mpt/io.executor": "Run",
+    "Go Test.TestExport_CanBeInterrupted in github.com/Fantom-foundation/Carmen/go/database/mpt/io.executor": "Run",
+    "Go Test.TestExport_CanBeInterrupted in github.com/Fantom-foundation/Carmen/go/database/mpt/tool.executor": "Run",
+    "Go Test.TestExport_CanBeInterrupted/archive in github.com/Fantom-foundation/Carmen/go/database/mpt/io.executor": "Run",
+    "Go Test.TestExport_CanBeInterrupted/live in github.com/Fantom-foundation/Carmen/go/database/mpt/io.executor": "Run",
+    "Go Test.TestExport_CanBeInterrupted/live-from-archive in github.com/Fantom-foundation/Carmen/go/database/mpt/io.executor": "Run",
+    "Go Test.TestExport_SigIntIsTrapped in github.com/Fantom-foundation/Carmen/go/database/mpt/io.executor": "Run",
+    "Go Test.TestForest_HasEmptyStorage in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestForest_HasEmptyStorage_CastingDoesNotFail in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestForest_Release_Queue_Error_Get_Node in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Debug",
+    "Go Test.TestGoState_HasEmptyStorage in github.com/Fantom-foundation/Carmen/go/state/gostate.executor": "Run",
+    "Go Test.TestGoState_HasEmptyStorage_ErrEmptyStateNotImplementedIsCaught in github.com/Fantom-foundation/Carmen/go/state/gostate.executor": "Run",
+    "Go Test.TestHasEmptyStorage in github.com/Fantom-foundation/Carmen/go/backend/archive.executor": "Run",
+    "Go Test.TestIO_ArchiveAndLive_ExportAndImport in github.com/Fantom-foundation/Carmen/go/database/mpt/io.executor": "Run",
+    "Go Test.TestIO_ArchiveAndLive_ExportAndImport_IncorrectMagicNumberIsNoticed in github.com/Fantom-foundation/Carmen/go/database/mpt/io.executor": "Run",
+    "Go Test.TestIO_Archive_ExportAndImport in github.com/Fantom-foundation/Carmen/go/database/mpt/io.executor": "Run",
+    "Go Test.TestIO_ExportBlockFromArchive in github.com/Fantom-foundation/Carmen/go/database/mpt/io.executor": "Run",
+    "Go Test.TestIO_ExportLiveFromArchive in github.com/Fantom-foundation/Carmen/go/database/mpt/io.executor": "Run",
+    "Go Test.TestIO_LiveAndArchive_Import_IncorrectMagicNumberIsNoticed in github.com/Fantom-foundation/Carmen/go/database/mpt/io.executor": "Run",
+    "Go Test.TestIO_Live_Import_IncorrectMagicNumberIsNoticed in github.com/Fantom-foundation/Carmen/go/database/mpt/io.executor": "Run",
+    "Go Test.TestLiveTrie_DeleteLargeAccount in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestLiveTrie_HasEmptyStorage in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Debug",
+    "Go Test.TestLiveTrie_VerificationOfEmptyDirectoryPasses in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestLiveTrie_VerificationOfFreshArchivePasses in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestLiveTrie_VerificationOfLiveTrieWithCorruptedFileFails in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestLiveTrie_VerificationOfLiveTrieWithMissingFileFails in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestMemoryFootprint in github.com/Fantom-foundation/Carmen/go/carmen.executor": "Run",
+    "Go Test.TestMemoryFootprint_GetAllChildren in github.com/Fantom-foundation/Carmen/go/common.executor": "Run",
+    "Go Test.TestMemoryFootprint_GetTreeReturnsCopy in github.com/Fantom-foundation/Carmen/go/common.executor": "Run",
+    "Go Test.TestMemoryFootprint_VisitIsAppliedOntoAllNestedChildren in github.com/Fantom-foundation/Carmen/go/carmen.executor": "Run",
+    "Go Test.TestNodeFlusher_TriggersFlushesPeriodically in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestNonCommittableStateDB_TransientStorage_DoesNotLeakBetweenInstances in github.com/Fantom-foundation/Carmen/go/state.executor": "Debug",
+    "Go Test.TestNonCommittableStateDB_TransientStorage_IsEmptyWhenNew in github.com/Fantom-foundation/Carmen/go/state.executor": "Debug",
+    "Go Test.TestNonCommittableStateDB_resetState_ClearsTransientStorage in github.com/Fantom-foundation/Carmen/go/state.executor": "Run",
+    "Go Test.TestQueryContext_ErrorsArePropagated/has-empty-storage in github.com/Fantom-foundation/Carmen/go/carmen.executor": "Run",
+    "Go Test.TestQueryContext_QueriesAreForwarded/has-empty-storage in github.com/Fantom-foundation/Carmen/go/carmen.executor": "Run",
+    "Go Test.TestStateDB_CreateAccountCreatesUndoForExistingAccount in github.com/Fantom-foundation/Carmen/go/state.executor": "Debug",
+    "Go Test.TestStateDB_CreateAccountResetsTransientStorage in github.com/Fantom-foundation/Carmen/go/state.executor": "Run",
+    "Go Test.TestStateDB_HasEmptyStorage in github.com/Fantom-foundation/Carmen/go/state.executor": "Run",
+    "Go Test.TestStateDB_HasEmptyStorage_ChecksCachedStorage in github.com/Fantom-foundation/Carmen/go/state.executor": "Run",
+    "Go Test.TestStateDB_HasEmptyStorage_NoCachedStorage in github.com/Fantom-foundation/Carmen/go/state.executor": "Run",
+    "Go Test.TestStateDB_HasEmptyStorage_NonExistentAccountReturnsTrue in github.com/Fantom-foundation/Carmen/go/state.executor": "Run",
+    "Go Test.TestStateDB_HasEmptyStorage_StateIsCheckedIfNotFoundInCache in github.com/Fantom-foundation/Carmen/go/state.executor": "Run",
+    "Go Test.TestStateDB_NewestValueCanBeObtained in github.com/Fantom-foundation/Carmen/go/state.executor": "Run",
+    "Go Test.TestStateDB_SetTransientState_ExistingValue_UndoRollbacksValue in github.com/Fantom-foundation/Carmen/go/state.executor": "Run",
+    "Go Test.TestStateDB_SetTransientState_NewValue_RollbackRemovesValue in github.com/Fantom-foundation/Carmen/go/state.executor": "Run",
+    "Go Test.TestStateDB_SetTransientState_NewValue_UndoRemovesValue in github.com/Fantom-foundation/Carmen/go/state.executor": "Run",
+    "Go Test.TestStateDB_SetTransientState_NewestValueCanBeObtained in github.com/Fantom-foundation/Carmen/go/state.executor": "Run",
+    "Go Test.TestStateDB_SetTransientState_RollbackRemovesValue in github.com/Fantom-foundation/Carmen/go/state.executor": "Run",
+    "Go Test.TestStateDB_SetTransientState_RollbackToPreviousValue in github.com/Fantom-foundation/Carmen/go/state.executor": "Run",
+    "Go Test.TestStateDB_SetTransientState_RollbackWithMultipleSteps in github.com/Fantom-foundation/Carmen/go/state.executor": "Run",
+    "Go Test.TestStateDB_SetTransientState_SameValueIsNotWritten in github.com/Fantom-foundation/Carmen/go/state.executor": "Run",
+    "Go Test.TestStateDB_SetTransientState_SettingSameValueReturnsEarly in github.com/Fantom-foundation/Carmen/go/state.executor": "Run",
+    "Go Test.TestStateDB_SetTransientState_ValueIsNotSetIfSame in github.com/Fantom-foundation/Carmen/go/state.executor": "Run",
+    "Go Test.TestStateDB_TransientStorageIsClearedAfterWithEndTransaction in github.com/Fantom-foundation/Carmen/go/state.executor": "Run",
+    "Go Test.TestStateDB_TransientStorage_IsClearedAfterCallingCreateAccount in github.com/Fantom-foundation/Carmen/go/state.executor": "Run",
+    "Go Test.TestStateDB_TransientStorage_IsClearedAfterCallingEndTransaction in github.com/Fantom-foundation/Carmen/go/state.executor": "Run",
+    "Go Test.TestStateDB_TransientStorage_UndoRollbacksValueAfterAccountIsRecreated in github.com/Fantom-foundation/Carmen/go/state.executor": "Run",
+    "Go Test.TestStateDB_UndoWorksWithRecreatingAccount in github.com/Fantom-foundation/Carmen/go/state.executor": "Run",
+    "Go Test.TestState_ArchiveState_FailingOperation_InvalidatesArchive in github.com/Fantom-foundation/Carmen/go/state/gostate.executor": "Run",
+    "Go Test.TestState_HasEmptyStorage in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestState_HasEmptyStorage in github.com/Fantom-foundation/Carmen/go/state.executor": "Run",
+    "Go Test.TestState_StateModifications_Failing in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestState_StateModifications_FailingHasEmptyStorage in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestTransaction_AfterCommitAllOperationsAreNoops in github.com/Fantom-foundation/Carmen/go/carmen.executor": "Run",
+    "Go Test.TestTransaction_Operations_Passthrough in github.com/Fantom-foundation/Carmen/go/carmen.executor": "Run",
+    "Go Test.TestTriboolUnknown in github.com/Fantom-foundation/Carmen/go/carmen.executor": "Run",
+    "Go Test.TestValueNode_HasEmptyStorage in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_AccountBalanceModificationIsDetected in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_AccountCodeHashModificationIsDetected in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_AccountNodeHashModificationIsDetected in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_AccountNode_DifferentHashInCodeFileIsDetected in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Debug",
+    "Go Test.TestVerification_AccountNode_HashNotContainedIsDetected in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Debug",
+    "Go Test.TestVerification_AccountNonceModificationIsDetected in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_AccountStorageHashModificationIsDetected in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_AccountStorageModificationIsDetected in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_BranchChildHashModificationIsDetected in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_BranchChildIdModificationIsDetected in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_BranchNodeHashModificationIsDetected in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_CanInterrupt in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_CodeHash in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_CodeHashNotContainedInMptIsDetected in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_CodeHashNotContainedIsDetected in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_CodesAreNotCheckedTwice in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Debug",
+    "Go Test.TestVerification_ContractCodeVerification_ContractsNotReferencedByAnyAccountIsReported in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_ContractCodeVerification_DifferentHashInCodeFileIsDetected in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_ContractCodeVerification_DifferentHashInCodeFileNotReferencedByAnyAccountIsDetected in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Debug",
+    "Go Test.TestVerification_ContractCodeVerification_DifferentHashInCodeFileaaaIsDetected in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_ContractCodeVerification_DifferentLeftoverHashInCodeFileIsDetected in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_ContractCodeVerification_ExtraHashInCodeFileIsDetected in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_ContractCodeVerification_HashNotContainedIsDetected in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_ContractCodeVerification_MissingHashInCodeFileIsDetected in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_DifferentExtraHashInCodeFileIsDetected in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_DifferentHashInCodeFileIsDetected in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Debug",
+    "Go Test.TestVerification_ExtensionNextHashModificationIsDetected in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_ExtensionNextModificationIsDetected in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_ExtensionNodeHashModificationIsDetected in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_ExtensionPathModificationIsDetected in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_ExtraCodeHashInCodeFileIsDetected in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_ExtraIncorrectCodeHashIsDetected in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Debug",
+    "Go Test.TestVerification_ForestVerificationObserverReportsError in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_HashesOfEmbeddedNodesAreIgnored in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_InterruptIsNotCheckedEveryNode in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_MissingCodeHashInCodeFileIsDetected in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_MissingFileIsDetected in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_ModifiedFileIsDetected in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_ModifiedRootIsDetected in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_PassingNilAsObserverCreatesNilObserver in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_PassingNilAsObserverDoesNotFail in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_UnreadableCodesReturnError in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_ValueKeyModificationIsDetected in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_ValueModificationIsDetected in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_ValueNodeHashModificationIsDetected in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_VerificationObserverIsKeptUpdatedOnEvents in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_VerificationObserverReportsError in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_VerifyForest_Interrupt in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_VerifyMpt_Interrupt in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Debug",
+    "Go Test.TestVerification_VerifyValidForest in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_VerifyValidForest_Interrupt in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_VerifyValidMpt in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerification_VerifyValidMptState in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerifyFileForest_PassingNilAsObserverDoesNotFail in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.TestVerifyFileForest_PassingNilAsObserverDoesNotPanic in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Run",
+    "Go Test.Test_CatchInterrupt in github.com/Fantom-foundation/Carmen/go/database/mpt/tool.executor": "Run",
+    "Go Test.Test_ttt in github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Debug",
+    "Go Test.go test github.com/Fantom-foundation/Carmen/go/backend/archive.executor": "Run",
+    "Go Test.go test github.com/Fantom-foundation/Carmen/go/carmen.executor": "Run",
+    "Go Test.go test github.com/Fantom-foundation/Carmen/go/database/mpt.executor": "Debug",
+    "Go Test.go test github.com/Fantom-foundation/Carmen/go/database/mpt/io.executor": "Run",
+    "Go Test.go test github.com/Fantom-foundation/Carmen/go/database/mpt/tool.executor": "Run",
+    "Go Test.go test github.com/Fantom-foundation/Carmen/go/state.executor": "Run",
+    "Go Test.go test github.com/Fantom-foundation/Carmen/go/state/gostate.executor": "Run",
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.go.formatter.settings.were.checked": "true",
+    "RunOnceActivity.go.migrated.go.modules.settings": "true",
+    "RunOnceActivity.go.modules.automatic.dependencies.download": "true",
+    "RunOnceActivity.go.modules.go.list.on.any.changes.was.set": "true",
+    "WebServerToolWindowFactoryState": "false",
+    "git-widget-placeholder": "petr/test-branch",
+    "go.import.settings.migrated": "true",
+    "go.sdk.automatically.set": "true",
+    "last_opened_file_path": "/Users/petrhanzl/Projects/Work/Carmen",
+    "node.js.detected.package.eslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable"
+  }
+}]]></component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/go/database/mpt/io" />
+      <recent name="$PROJECT_DIR$/go/common/expot" />
+      <recent name="$PROJECT_DIR$/go/common" />
+      <recent name="$PROJECT_DIR$/go/common/export" />
+      <recent name="$PROJECT_DIR$/go/database/mpt" />
+    </key>
+  </component>
+  <component name="RunManager" selected="Go Test.go test github.com/Fantom-foundation/Carmen/go/database/mpt/io">
+    <configuration name="Export" type="GoApplicationRunConfiguration" factoryName="Go Application">
+      <module name="Carmen" />
+      <working_directory value="$PROJECT_DIR$/go" />
+      <parameters value="export /Volumes/T7/state_db_carmen_go-file_2000000/live /Volumes/T7/genesis-live.dat" />
+      <EXTENSION ID="net.ashald.envfile">
+        <option name="IS_ENABLED" value="false" />
+        <option name="IS_SUBST" value="false" />
+        <option name="IS_PATH_MACRO_SUPPORTED" value="false" />
+        <option name="IS_IGNORE_MISSING_FILES" value="false" />
+        <option name="IS_ENABLE_EXPERIMENTAL_INTEGRATIONS" value="false" />
+        <ENTRIES>
+          <ENTRY IS_ENABLED="true" PARSER="runconfig" IS_EXECUTABLE="false" />
+        </ENTRIES>
+      </EXTENSION>
+      <kind value="PACKAGE" />
+      <package value="github.com/Fantom-foundation/Carmen/go/database/mpt/tool" />
+      <directory value="$PROJECT_DIR$" />
+      <filePath value="$PROJECT_DIR$/go/database/mpt/tool/main.go" />
+      <method v="2" />
+    </configuration>
+    <configuration name="Import" type="GoApplicationRunConfiguration" factoryName="Go Application">
+      <module name="Carmen" />
+      <working_directory value="$PROJECT_DIR$/go" />
+      <parameters value="import-live-db /Volumes/T7/genesis-live.dat /Volumes/T7/import-live-db" />
+      <EXTENSION ID="net.ashald.envfile">
+        <option name="IS_ENABLED" value="false" />
+        <option name="IS_SUBST" value="false" />
+        <option name="IS_PATH_MACRO_SUPPORTED" value="false" />
+        <option name="IS_IGNORE_MISSING_FILES" value="false" />
+        <option name="IS_ENABLE_EXPERIMENTAL_INTEGRATIONS" value="false" />
+        <ENTRIES>
+          <ENTRY IS_ENABLED="true" PARSER="runconfig" IS_EXECUTABLE="false" />
+        </ENTRIES>
+      </EXTENSION>
+      <kind value="PACKAGE" />
+      <package value="github.com/Fantom-foundation/Carmen/go/database/mpt/tool" />
+      <directory value="$PROJECT_DIR$" />
+      <filePath value="$PROJECT_DIR$/go/database/mpt/tool/main.go" />
+      <method v="2" />
+    </configuration>
+    <configuration name="TestIO_ExportLiveFromArchive in github.com/Fantom-foundation/Carmen/go/database/mpt/io" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
+      <module name="Carmen" />
+      <working_directory value="$PROJECT_DIR$/go/database/mpt/io" />
+      <root_directory value="$PROJECT_DIR$/go" />
+      <kind value="PACKAGE" />
+      <package value="github.com/Fantom-foundation/Carmen/go/database/mpt/io" />
+      <directory value="$PROJECT_DIR$" />
+      <filePath value="$PROJECT_DIR$" />
+      <framework value="gotest" />
+      <pattern value="^\QTestIO_ExportLiveFromArchive\E$" />
+      <method v="2" />
+    </configuration>
+    <configuration name="TestVerification_CanInterrupt in github.com/Fantom-foundation/Carmen/go/database/mpt" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
+      <module name="Carmen" />
+      <working_directory value="$PROJECT_DIR$/go/database/mpt" />
+      <root_directory value="$PROJECT_DIR$/go" />
+      <kind value="PACKAGE" />
+      <package value="github.com/Fantom-foundation/Carmen/go/database/mpt" />
+      <directory value="$PROJECT_DIR$" />
+      <filePath value="$PROJECT_DIR$" />
+      <framework value="gotest" />
+      <pattern value="^\QTestVerification_CanInterrupt\E$" />
+      <method v="2" />
+    </configuration>
+    <configuration name="TestVerification_InterruptIsNotCheckedEveryNode in github.com/Fantom-foundation/Carmen/go/database/mpt" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
+      <module name="Carmen" />
+      <working_directory value="$PROJECT_DIR$/go/database/mpt" />
+      <root_directory value="$PROJECT_DIR$/go" />
+      <kind value="PACKAGE" />
+      <package value="github.com/Fantom-foundation/Carmen/go/database/mpt" />
+      <directory value="$PROJECT_DIR$" />
+      <filePath value="$PROJECT_DIR$" />
+      <framework value="gotest" />
+      <pattern value="^\QTestVerification_InterruptIsNotCheckedEveryNode\E$" />
+      <method v="2" />
+    </configuration>
+    <configuration name="go test github.com/Fantom-foundation/Carmen/go/database/mpt" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
+      <module name="Carmen" />
+      <working_directory value="$PROJECT_DIR$/go/database/mpt" />
+      <root_directory value="$PROJECT_DIR$/go" />
+      <kind value="PACKAGE" />
+      <package value="github.com/Fantom-foundation/Carmen/go/database/mpt" />
+      <directory value="$PROJECT_DIR$" />
+      <filePath value="$PROJECT_DIR$" />
+      <framework value="gotest" />
+      <method v="2" />
+    </configuration>
+    <configuration name="go test github.com/Fantom-foundation/Carmen/go/database/mpt/io" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
+      <module name="Carmen" />
+      <working_directory value="$PROJECT_DIR$/go/database/mpt/io" />
+      <root_directory value="$PROJECT_DIR$/go" />
+      <kind value="PACKAGE" />
+      <package value="github.com/Fantom-foundation/Carmen/go/database/mpt/io" />
+      <directory value="$PROJECT_DIR$" />
+      <filePath value="$PROJECT_DIR$" />
+      <framework value="gotest" />
+      <method v="2" />
+    </configuration>
+    <list>
+      <item itemvalue="Go Build.Export" />
+      <item itemvalue="Go Build.Import" />
+      <item itemvalue="Go Test.TestVerification_CanInterrupt in github.com/Fantom-foundation/Carmen/go/database/mpt" />
+      <item itemvalue="Go Test.TestVerification_InterruptIsNotCheckedEveryNode in github.com/Fantom-foundation/Carmen/go/database/mpt" />
+      <item itemvalue="Go Test.go test github.com/Fantom-foundation/Carmen/go/database/mpt" />
+      <item itemvalue="Go Test.TestIO_ExportLiveFromArchive in github.com/Fantom-foundation/Carmen/go/database/mpt/io" />
+      <item itemvalue="Go Test.go test github.com/Fantom-foundation/Carmen/go/database/mpt/io" />
+    </list>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Go Test.go test github.com/Fantom-foundation/Carmen/go/database/mpt/io" />
+        <item itemvalue="Go Test.TestVerification_CanInterrupt in github.com/Fantom-foundation/Carmen/go/database/mpt" />
+        <item itemvalue="Go Test.TestVerification_InterruptIsNotCheckedEveryNode in github.com/Fantom-foundation/Carmen/go/database/mpt" />
+        <item itemvalue="Go Test.TestIO_ExportLiveFromArchive in github.com/Fantom-foundation/Carmen/go/database/mpt/io" />
+        <item itemvalue="Go Test.go test github.com/Fantom-foundation/Carmen/go/database/mpt" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-gosdk-2946fb9b3188-155fe4b6e3a0-org.jetbrains.plugins.go.sharedIndexes.bundled-GO-233.15026.17" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="RECENT_FILTERS">
+      <map>
+        <entry key="Branch">
+          <value>
+            <list>
+              <RecentGroup>
+                <option name="FILTER_VALUES">
+                  <option value="main" />
+                </option>
+              </RecentGroup>
+              <RecentGroup>
+                <option name="FILTER_VALUES">
+                  <option value="petr/specify-import-err" />
+                </option>
+              </RecentGroup>
+              <RecentGroup>
+                <option name="FILTER_VALUES">
+                  <option value="petr/livedb-genesis-api" />
+                </option>
+              </RecentGroup>
+              <RecentGroup>
+                <option name="FILTER_VALUES">
+                  <option value="petr/cp-interval-property" />
+                </option>
+              </RecentGroup>
+              <RecentGroup>
+                <option name="FILTER_VALUES">
+                  <option value="origin/herbert/recover_prototype" />
+                </option>
+              </RecentGroup>
+              <RecentGroup>
+                <option name="FILTER_VALUES">
+                  <option value="herbert/add_carmen_stress_test" />
+                </option>
+              </RecentGroup>
+              <RecentGroup>
+                <option name="FILTER_VALUES">
+                  <option value="petr/has-empty-storage" />
+                </option>
+              </RecentGroup>
+            </list>
+          </value>
+        </entry>
+      </map>
+    </option>
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Bring back newest version; Print poll" />
+    <MESSAGE value="Use built version instead of go run" />
+    <MESSAGE value="Find error. Bring back old block numbers." />
+    <MESSAGE value="Lower the sleep time." />
+    <MESSAGE value="Use restore block as first block" />
+    <MESSAGE value="Use +1, add proper documentation" />
+    <MESSAGE value="Use poll()" />
+    <MESSAGE value="Trash carmens logging" />
+    <MESSAGE value="redirect carmens logging" />
+    <MESSAGE value="Use file for carmens logs" />
+    <MESSAGE value="Remove carmen log" />
+    <MESSAGE value="Remove bash script" />
+    <MESSAGE value="Move working dir definements" />
+    <MESSAGE value="Print what is removed" />
+    <MESSAGE value="Remove genesis" />
+    <MESSAGE value="Correctly open file" />
+    <MESSAGE value="Remove file contents" />
+    <MESSAGE value="Reopen carmen log every iteration" />
+    <MESSAGE value="Add variable kill and restore block" />
+    <MESSAGE value="Use w+ instead of r+ to create file." />
+    <MESSAGE value="Stop using dynamic incremental" />
+    <MESSAGE value="Check every 1000th node." />
+    <MESSAGE value="Fix io tests." />
+    <MESSAGE value="Fix mpt tests." />
+    <MESSAGE value="Test commit" />
+    <option name="LAST_COMMIT_MESSAGE" value="Test commit" />
+  </component>
+  <component name="VgoProject">
+    <settings-migrated>true</settings-migrated>
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/go/state/state_db.go</url>
+          <line>38</line>
+          <option name="timeStamp" value="391" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/go/database/mpt/verification_test.go</url>
+          <line>682</line>
+          <option name="timeStamp" value="399" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
+  </component>
+  <component name="com.intellij.coverage.CoverageDataManagerImpl">
+    <SUITE FILE_PATH="coverage/Carmen$TestStateDB_SetTransientState_SettingSameValueReturnsEarly_in_github_com_Fantom_foundation_Carmen_go_state.out" NAME="TestStateDB_SetTransientState_SettingSameValueReturnsEarly in github.com/Fantom-foundation/Carmen/go/state Coverage Results" MODIFIED="1716186666865" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="GoCoverage" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" />
+    <SUITE FILE_PATH="coverage/Carmen$TestArchiveTrie_VisitTrie_in_github_com_Fantom_foundation_Carmen_go_database_mpt.out" NAME="TestArchiveTrie_VisitTrie in github.com/Fantom-foundation/Carmen/go/database/mpt Coverage Results" MODIFIED="1721742745195" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="GoCoverage" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" />
+  </component>
+</project>

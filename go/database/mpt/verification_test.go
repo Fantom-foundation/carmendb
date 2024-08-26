@@ -707,6 +707,7 @@ func runVerificationTest(t *testing.T, verify func(t *testing.T, dir string, con
 	}
 }
 
+// test terminal
 func fillTestCodeFile(filename string) error {
 	codes := make(map[common.Hash][]byte)
 	codes[common.Keccak256([]byte{1})] = []byte{1}
