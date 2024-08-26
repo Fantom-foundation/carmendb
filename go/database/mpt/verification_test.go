@@ -682,6 +682,8 @@ func TestVerification_VerifyValidMptState(t *testing.T) {
 	})
 }
 
+// teststeststs
+
 func runVerificationTest(t *testing.T, verify func(t *testing.T, dir string, config MptConfig, roots []Root)) {
 	t.Helper()
 	for _, config := range allMptConfigs {
