@@ -54,15 +54,6 @@ const (
 	EthereumHash = HashType(0)
 )
 
-// NewExportableArchiveTrie allows visiting mpt.ArchiveTrie at given block
-// and getting its properties such as Code Hashes or Root Hash.
-func NewExportableArchiveTrie(trie *mpt.ArchiveTrie, block uint64) mptStateVisitor {
-	return exportableArchiveTrie{
-		trie:  trie,
-		block: block,
-	}
-}
-
 // mptStateVisitor is an interface for Tries that allows for visiting the Trie nodes
 // and furthermore getting its properties such as a root hash and contract codes.
 type mptStateVisitor interface {
@@ -75,8 +66,9 @@ type mptStateVisitor interface {
 }
 
 type exportableArchiveTrie struct {
-	trie  *mpt.ArchiveTrie
-	block uint64
+	directory string
+	trie      *mpt.ArchiveTrie
+	block     uint64
 }
 
 func (e exportableArchiveTrie) Visit(visitor mpt.NodeVisitor) error {
@@ -135,6 +127,31 @@ func ExportBlockFromArchive(ctx context.Context, logger *Log, directory string, 
 
 	defer archive.Close()
 	_, err = ExportLive(ctx, logger, exportableArchiveTrie{trie: archive, block: block}, out)
+	return err
+}
+
+// ExportBlockFromOnlineArchive exports LiveDB view for a single given block from an Archive.
+// This method exports from the online archive, i.e, an archive that is being updated with new blocks.
+// To ensure the exported data are up-to-date, this method flushes archive to disk before exporting.
+// Expected usage is, for instance, the creation of database dump once in many blocks to backup the state.
+func ExportBlockFromOnlineArchive(ctx context.Context, logger *Log, archive *mpt.ArchiveTrie, out io.Writer, block uint64) error {
+	logger.Printf("exporting block %d from online archive", block)
+	defer func() {
+		logger.Printf("exported block %d from online archive", block)
+	}()
+
+	logger.Printf("flushing archive")
+	// before doing anything, flush the archive to ensure the data is up-to-date
+	if err := archive.Flush(); err != nil {
+		return err
+	}
+
+	logger.Printf("exporting")
+	_, err := ExportLive(ctx, logger, exportableArchiveTrie{
+		directory: archive.Directory(),
+		trie:      archive,
+		block:     block,
+	}, out)
 	return err
 }
 
