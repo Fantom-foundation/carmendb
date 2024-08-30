@@ -24,7 +24,6 @@ jobs = [
     'CompareMainnet44M',
     'CompareMainnet22M',
     'GoFileMainnet50M',
-    'CppFileMainnet50M',
 ]
 
 for job in jobs:

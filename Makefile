@@ -8,15 +8,33 @@
 
 .PHONY: all clean
 
-all: carmen-cpp
+.PHONY: all
+all: main
 
-# this target builds the C++ library required by Go
-carmen-cpp: 
-	@cd ./go/lib ; \
-	./build_libcarmen.sh ;
+GOPROXY ?= "https://proxy.golang.org,direct"
+.PHONY: main
+main:
+	GIT_COMMIT=`git rev-list -1 HEAD 2>/dev/null || echo ""` && \
+	GIT_DATE=`git log -1 --date=short --pretty=format:%ct 2>/dev/null || echo ""` && \
+	GOPROXY=$(GOPROXY) \
+	go build \
+	    -ldflags "-s -w -X github.com/Fantom-foundation/carmendb/launcher.gitCommit=$${GIT_COMMIT} -X github.com/Fantom-foundation/camendb/launcher.gitDate=$${GIT_DATE}" \
+	    -o build/carmen \
+	    .
 
+.PHONY: build
+build:
+	go build -v ./...
+
+.PHONY: test
+test:
+	go test ./... -parallel 1 -timeout 60m
+
+.PHONY: stress-test
+stress-test:
+	go run ./database/mpt/tool stress-test --num-blocks 2000
+
+.PHONY: clean
 clean:
-	cd ./go ; \
-	rm -f lib/libcarmen.so ; \
-	cd ../cpp ; \
-	bazel clean ; \
+	rm -fr ./build/*
+

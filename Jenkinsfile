@@ -19,8 +19,6 @@ pipeline {
     environment {
         GOROOT = '/usr/lib/go-1.21/'
         GOMEMLIMIT = '5GiB'
-        CC = 'clang-14'
-        CXX = 'clang++-14'
     }
 
     stages {
@@ -47,44 +45,25 @@ pipeline {
 
                 stage('Check Go sources formatting') {
                     steps {
-                        sh 'cd go && diff=`${GOROOT}/bin/gofmt -s -d .` && echo "$diff" && test -z "$diff"'
-                    }
-                }
-
-                stage('Check C++ sources formatting') {
-                    steps {
-                        sh 'find cpp/ -iname *.h -o -iname *.cc | xargs clang-format --dry-run -Werror '
-                    }
-                }
-
-                stage('Build C++ libraries') {
-                    steps {
-                        sh 'git submodule update --init --recursive'
-                        sh 'cd go/lib && ./build_libcarmen.sh'
+                        sh 'diff=`${GOROOT}/bin/gofmt -s -d .` && echo "$diff" && test -z "$diff"'
                     }
                 }
 
                 stage('Build Go') {
                     steps {
-                        sh 'cd go && go build -v ./...'
+                        sh 'go build -v ./...'
                     }
                 }
 
                 stage('Run Go tests') {
                     steps {
-                        sh 'cd go && go test ./... -parallel 1 -timeout 60m'
+                        sh 'go test ./... -parallel 1 -timeout 60m'
                     }
                 }
 
                 stage('Run Mpt Go Stress Test') {
                     steps {
-                        sh 'cd go && go run ./database/mpt/tool stress-test --num-blocks 2000'
-                    }
-                }
-
-                stage('Run C++ tests') {
-                    steps {
-                        sh 'cd cpp && bazel test --test_output=errors //...'
+                        sh 'go run ./database/mpt/tool stress-test --num-blocks 2000'
                     }
                 }
             }

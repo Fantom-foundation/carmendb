@@ -27,7 +27,7 @@ root_dir=$(readlink -f "$script_dir/../..")
 
 # list of files/directories to ignore
 # paths must be in single quotes to prevent shell expansion (will be expanded later)
-ignore_files=('cpp/third_party/*')
+ignore_files=
 
 ## extract the flag if the script should only check the license headers
 check_only=false
@@ -59,7 +59,7 @@ extend_license_header() {
 # Add license header to all files in project
 # root directory and all sub-directories.
 # Parameters:
-#   file extension, e.g.: .go, .cpp,
+#   file extension, e.g.: .go
 #   comment prefix, e.g.: //, #,
 # Returns:
 #   0 if all files have correct license header,
@@ -150,8 +150,6 @@ add_license_to_files() {
 result=0
 add_license_to_files ".go" "//" || result=1
 add_license_to_files "Jenkinsfile" "//" || result=1
-add_license_to_files ".h" "//" || result=1
-add_license_to_files ".cc" "//" || result=1
 add_license_to_files "go.mod" "//" || result=1
 add_license_to_files ".yml" "#" || result=1
 add_license_to_files "BUILD" "#" || result=1

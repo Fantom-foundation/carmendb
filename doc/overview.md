@@ -1,21 +1,20 @@
 # How to Build
 1. Clone the repository
    ```
-   git clone https://github.com/Fantom-foundation/Carmen
+   git clone https://github.com/Fantom-foundation/carmendb
    ```
 2. Run tests
-    * [Go tests](https://github.com/Fantom-foundation/Carmen/tree/main/go#development)
-    * [C++ tests](https://github.com/Fantom-foundation/Carmen/blob/main/cpp/README.md#build-and-test)
+    * [Go tests](https://github.com/Fantom-foundation/carmendb/tree/main/go#development)
 ***
 
 # How to Integrate
-1. Get the latest `Go` version of `Carmen`
+1. Get the latest version of `carmendb`
 ```
-go get -u github.com/Fantom-foundation/Carmen/go
+go get -u github.com/Fantom-foundation/carmendb
 ```
 2. Import the public interface
 ```
-import "github.com/Fantom-foundation/Carmen/go/carmen"
+import "github.com/Fantom-foundation/carmendb/carmen"
 ```
 
 
